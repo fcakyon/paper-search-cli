@@ -4,6 +4,14 @@ Search academic sources, look up DOIs, download PDFs, read paper text, and follo
 
 A CLI-focused fork of [openags/paper-search-mcp](https://github.com/openags/paper-search-mcp). The paper operations remain available. MCP and its server integrations have been removed.
 
+## Same paper tools, less to install
+
+**80% fewer packages. 83% smaller install. About 3× faster startup.** All 71 default paper operations remain available through the CLI.
+
+![Upstream versus Paper Search CLI: 80 versus 16 packages, 75.5 versus 12.7 MB installed, and 113 versus 38 ms help startup](docs/images/cli-comparison.webp)
+
+Measured on macOS arm64 with Python 3.13.7 on 11 October 2026, comparing fresh installs of [upstream `cab1b5c`](https://github.com/openags/paper-search-mcp/commit/cab1b5c) and this fork's `0.2.0` wheel. Package counts include the application and exclude development tools. Size is the sum of installed file bytes in decimal MB. Startup is the median of five `paper-search --help` launches. Network search speed depends on providers.
+
 ## Install
 
 Requires Python 3.10+ and [uv](https://docs.astral.sh/uv/getting-started/installation/).
