@@ -7,7 +7,7 @@ from pathlib import Path
 from types import SimpleNamespace
 from unittest.mock import Mock, patch
 from pypdf import PdfWriter
-from paper_search_mcp.academic_platforms.semantic import SemanticSearcher
+from paper_search_cli.academic_platforms.semantic import SemanticSearcher
 
 
 def check_semantic_accessible():
@@ -43,7 +43,7 @@ class TestSemanticSearcher(unittest.TestCase):
 
         with tempfile.TemporaryDirectory(prefix="semantic_mock_download_") as test_dir:
             with patch.object(self.searcher, "get_paper_details", return_value=paper):
-                with patch("paper_search_mcp.academic_platforms.semantic.requests.get", return_value=response):
+                with patch("paper_search_cli.academic_platforms.semantic.requests.get", return_value=response):
                     result = self.searcher.download_pdf("paper/123", test_dir)
 
             expected_path = Path(test_dir) / "semantic_paper_123.pdf"

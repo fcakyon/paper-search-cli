@@ -4,15 +4,15 @@ from unittest.mock import Mock, patch
 
 import pytest
 
-from paper_search_mcp.academic_platforms.arxiv import ArxivSearcher
-from paper_search_mcp.academic_platforms.google_scholar import GoogleScholarSearcher
-from paper_search_mcp.academic_platforms.hal import HALSearcher
-from paper_search_mcp.academic_platforms.sci_hub import SciHubFetcher
-from paper_search_mcp.academic_platforms.semantic import (
+from paper_search_cli.academic_platforms.arxiv import ArxivSearcher
+from paper_search_cli.academic_platforms.google_scholar import GoogleScholarSearcher
+from paper_search_cli.academic_platforms.hal import HALSearcher
+from paper_search_cli.academic_platforms.sci_hub import SciHubFetcher
+from paper_search_cli.academic_platforms.semantic import (
     SemanticScholarRequestError,
     SemanticSearcher,
 )
-from paper_search_mcp.academic_platforms.zenodo import ZenodoSearcher
+from paper_search_cli.academic_platforms.zenodo import ZenodoSearcher
 
 
 def test_arxiv_uses_https_and_quotes_plain_multi_word_query():
@@ -152,10 +152,10 @@ def test_google_scholar_retries_consent_page_once():
             side_effect=[consent_response, result_response],
         ) as session_get,
         patch(
-            "paper_search_mcp.academic_platforms.google_scholar.time.sleep"
+            "paper_search_cli.academic_platforms.google_scholar.time.sleep"
         ),
         patch(
-            "paper_search_mcp.academic_platforms.google_scholar.random.uniform",
+            "paper_search_cli.academic_platforms.google_scholar.random.uniform",
             return_value=0.0,
         ),
     ):

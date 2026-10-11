@@ -1,4 +1,4 @@
-# paper_search_mcp/academic_platforms/dblp.py
+# paper_search_cli/academic_platforms/dblp.py
 from typing import List, Optional, Dict, Any
 from datetime import datetime
 import requests

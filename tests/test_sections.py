@@ -10,10 +10,10 @@ import pytest
 from pypdf import PdfWriter
 from pypdf.generic import NameObject, DecodedStreamObject
 
-from paper_search_mcp import sections, cli
-from paper_search_mcp import operations as server
-from paper_search_mcp.tools import TOOLS
-from paper_search_mcp.sections import SectionExtractionError, extract_pdf_sections, split_sections
+from paper_search_cli import sections, cli
+from paper_search_cli import operations as server
+from paper_search_cli.tools import TOOLS
+from paper_search_cli.sections import SectionExtractionError, extract_pdf_sections, split_sections
 
 
 from tests.pdf_helpers import make_pdf
@@ -340,7 +340,7 @@ def test_worker_memory_limit_rejects_large_allocation_without_harming_parent():
     except SectionExtractionError:
         pytest.skip("POSIX resource limits unavailable")
     import subprocess, sys
-    command = [sys.executable, "-c", "from paper_search_mcp._section_worker import _resource_limits; _resource_limits(3); bytearray(600 * 1024 * 1024)"]
+    command = [sys.executable, "-c", "from paper_search_cli._section_worker import _resource_limits; _resource_limits(3); bytearray(600 * 1024 * 1024)"]
     result = subprocess.run(command, capture_output=True, timeout=8)
     assert result.returncode != 0
     assert b"MemoryError" in result.stderr
@@ -394,7 +394,7 @@ def test_real_cli_large_result_drains_worker_pipe(root):
     lines = [text[index:index + 500] for index in range(0, len(text), 500)]
     (root / "large.pdf").write_bytes(make_pdf([["Methods", *lines]]))
     env = dict(os.environ, PAPER_SEARCH_MCP_SECTION_PDF_ROOT=str(root), PAPER_SEARCH_MCP_ENV_FILE=os.devnull)
-    result = subprocess.run([sys.executable, "-m", "paper_search_mcp.cli", "tool", "extract_sections",
+    result = subprocess.run([sys.executable, "-m", "paper_search_cli.cli", "tool", "extract_sections",
                              "large.pdf", "--max-chars", "150000"],
                             capture_output=True, text=True, timeout=20, env=env)
     assert result.returncode == 0, result.stderr

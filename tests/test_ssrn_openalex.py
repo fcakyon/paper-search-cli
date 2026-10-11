@@ -5,8 +5,8 @@ from unittest.mock import Mock
 import pytest
 import requests
 
-from paper_search_mcp.academic_platforms.openalex import OpenAlexSearcher
-from paper_search_mcp.academic_platforms.ssrn import SSRNSearcher
+from paper_search_cli.academic_platforms.openalex import OpenAlexSearcher
+from paper_search_cli.academic_platforms.ssrn import SSRNSearcher
 from tests.test_openreview import response, pdf_bytes
 
 
@@ -149,7 +149,7 @@ def test_limits_fail_before_network(limit):
 
 
 def test_ssrn_connector_and_unified_search_route_via_openalex(monkeypatch):
-    from paper_search_mcp import operations as server
+    from paper_search_cli import operations as server
     mock = Mock(side_effect=RuntimeError("OpenAlex HTTP 429"))
     monkeypatch.setattr(OpenAlexSearcher, "search_ssrn", mock)
     with pytest.raises(RuntimeError):

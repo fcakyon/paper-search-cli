@@ -10,11 +10,11 @@ from unittest.mock import Mock
 
 import pytest
 
-from paper_search_mcp import cli, config
-from paper_search_mcp import operations as server
-from paper_search_mcp.academic_platforms.scopus import ScopusSearcher
-from paper_search_mcp.academic_platforms.wos import WebOfScienceSearcher
-from paper_search_mcp.search_cache import CacheSettings, SearchCache, search_key
+from paper_search_cli import cli, config
+from paper_search_cli import operations as server
+from paper_search_cli.academic_platforms.scopus import ScopusSearcher
+from paper_search_cli.academic_platforms.wos import WebOfScienceSearcher
+from paper_search_cli.search_cache import CacheSettings, SearchCache, search_key
 
 @pytest.fixture(autouse=True)
 def isolated_runtime(monkeypatch, tmp_path):
@@ -118,7 +118,7 @@ def test_missing_institutional_keys_are_errors_and_never_cached(source, capsys):
 
 
 def test_shared_cli_tool_cache_and_clear_do_not_touch_pdf_files(monkeypatch, tmp_path, capsys):
-    from paper_search_mcp.academic_platforms.openalex import OpenAlexSearcher
+    from paper_search_cli.academic_platforms.openalex import OpenAlexSearcher
     cache = SearchCache(CacheSettings(enabled=True, path=tmp_path / "cache.sqlite3"))
     monkeypatch.setattr(server, "_SEARCH_CACHE", cache)
     searcher = OpenAlexSearcher(api_key="", email="")
@@ -142,7 +142,7 @@ def test_shared_cli_tool_cache_and_clear_do_not_touch_pdf_files(monkeypatch, tmp
 
 @pytest.mark.parametrize("location", [".netrc", "_netrc", "custom"])
 def test_ambient_netrc_auth_never_enters_the_public_cache(location, monkeypatch, tmp_path):
-    from paper_search_mcp.academic_platforms.openalex import OpenAlexSearcher
+    from paper_search_cli.academic_platforms.openalex import OpenAlexSearcher
     import requests
     monkeypatch.setenv("HOME", str(tmp_path))
     monkeypatch.delenv("NETRC", raising=False)

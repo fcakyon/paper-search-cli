@@ -4,7 +4,7 @@ import unittest
 
 import requests
 
-from paper_search_mcp.academic_platforms.biorxiv import BioRxivSearcher
+from paper_search_cli.academic_platforms.biorxiv import BioRxivSearcher
 
 
 def check_api_accessible():

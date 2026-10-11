@@ -13,10 +13,10 @@ from unittest.mock import AsyncMock, Mock, patch
 
 import pytest
 
-from paper_search_mcp import cli, cli_search, cli_search_worker
-from paper_search_mcp import operations as server
-from paper_search_mcp.academic_platforms.iacr import IACRSearcher
-from paper_search_mcp.academic_platforms.pubmed import PubMedSearcher
+from paper_search_cli import cli, cli_search, cli_search_worker
+from paper_search_cli import operations as server
+from paper_search_cli.academic_platforms.iacr import IACRSearcher
+from paper_search_cli.academic_platforms.pubmed import PubMedSearcher
 
 
 def test_search_papers_returns_partial_results_when_one_source_times_out():
@@ -146,7 +146,7 @@ def test_timed_out_blocking_search_keeps_capacity_until_worker_exits():
 def test_pubmed_search_uses_bounded_request_timeout():
     response = Mock(content=b"<eSearchResult><IdList /></eSearchResult>")
     with patch(
-        "paper_search_mcp.academic_platforms.pubmed.requests.get",
+        "paper_search_cli.academic_platforms.pubmed.requests.get",
         return_value=response,
     ) as request:
         assert PubMedSearcher().search("test") == []
@@ -222,7 +222,7 @@ def test_timeout_keeps_results_labels_errors_and_cli_exit(workers):
     # main() includes asyncio.run shutdown and interpreter teardown. A coroutine
     # timing test alone misses ThreadPoolExecutor's wait-at-exit behavior.
     script = (
-        "import sys\nfrom paper_search_mcp import cli, cli_search\n"
+        "import sys\nfrom paper_search_cli import cli, cli_search\n"
         f"cli_search._worker_command = lambda: [sys.executable, '-c', {_CLI_WORKER!r}, {str(workers)!r}]\n"
         "cli.main()\n"
     )
@@ -420,7 +420,7 @@ def test_spawn_failure_is_reported_per_source(monkeypatch):
 @pytest.mark.skipif(sys.platform == "win32", reason="Uses POSIX SIGINT delivery; cancellation is tested on all platforms")
 def test_ctrl_c_reaps_worker_and_exits_even_with_large_output(workers):
     script = (
-        "import asyncio, signal, sys\nfrom paper_search_mcp import cli_search\n"
+        "import asyncio, signal, sys\nfrom paper_search_cli import cli_search\n"
         # A background test runner may inherit SIG_IGN from its shell. Emulate
         # the foreground CLI's normal handler before asyncio.run takes over.
         "signal.signal(signal.SIGINT, signal.default_int_handler)\n"

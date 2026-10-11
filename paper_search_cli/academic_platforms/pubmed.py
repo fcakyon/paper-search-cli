@@ -1,4 +1,4 @@
-# paper_search_mcp/sources/pubmed.py
+# paper_search_cli/sources/pubmed.py
 from typing import List
 import requests
 from xml.etree import ElementTree as ET

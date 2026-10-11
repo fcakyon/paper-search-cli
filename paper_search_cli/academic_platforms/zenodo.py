@@ -67,7 +67,7 @@ class ZenodoSearcher(PaperSource):
                 - ``access_right``: ``"open"``, ``"embargoed"``, ``"restricted"``, ``"closed"``.
 
         Returns:
-            List of :class:`~paper_search_mcp.paper.Paper` objects.
+            List of :class:`~paper_search_cli.paper.Paper` objects.
         """
         max_results = max(1, min(max_results, 200))
 

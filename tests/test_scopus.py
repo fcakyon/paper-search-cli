@@ -7,13 +7,13 @@ from unittest.mock import Mock
 import pytest
 import requests
 
-from paper_search_mcp import cli, config
-from paper_search_mcp import operations as server
-from paper_search_mcp.academic_platforms.institutional import (
+from paper_search_cli import cli, config
+from paper_search_cli import operations as server
+from paper_search_cli.academic_platforms.institutional import (
     CredentialsRequiredError, IdentityMismatchError, PermissionDeniedError,
     ProviderResponseError, ProviderTimeoutError, RateLimitError,
 )
-from paper_search_mcp.academic_platforms.scopus import ScopusSearcher
+from paper_search_cli.academic_platforms.scopus import ScopusSearcher
 
 
 def response(payload=None, status=200, content=b''):
@@ -275,7 +275,7 @@ def test_cli_and_mcp_search_options_parity(searcher, monkeypatch, capsys):
     asyncio.run(cli.cmd_search(args))
     cli_result = json.loads(capsys.readouterr().out)
     cli_params = searcher.session.get.call_args.kwargs['params']
-    monkeypatch.setattr('paper_search_mcp.academic_platforms.scopus.ScopusSearcher', lambda: searcher)
+    monkeypatch.setattr('paper_search_cli.academic_platforms.scopus.ScopusSearcher', lambda: searcher)
     mcp_result = asyncio.run(server.search_scopus('test', 4, 'COMPLETE', 'citedby-count', 'TITLE', '2024'))
     assert cli_result['papers'] == mcp_result
     assert cli_params == searcher.session.get.call_args.kwargs['params']

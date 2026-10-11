@@ -154,7 +154,7 @@ def split_sections(text: str, page_starts: list[int], max_sections: int, final_l
 def _worker_command() -> list[str]:
     # Use this installed/source checkout, never a user-supplied module or path.
     bootstrap = ("import runpy,sys; sys.path.insert(0,sys.argv[1]); "
-                 "runpy.run_module('paper_search_mcp._section_worker',run_name='__main__')")
+                 "runpy.run_module('paper_search_cli._section_worker',run_name='__main__')")
     return [sys.executable, "-I", "-c", bootstrap, str(Path(__file__).resolve().parents[1])]
 
 

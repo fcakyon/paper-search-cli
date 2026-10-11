@@ -12,9 +12,9 @@ from unittest.mock import Mock
 import pytest
 import requests
 
-from paper_search_mcp import cli, config
-from paper_search_mcp.academic_platforms import arxiv, biorxiv, medrxiv
-from paper_search_mcp.academic_platforms.semantic import SemanticSearcher
+from paper_search_cli import cli, config
+from paper_search_cli.academic_platforms import arxiv, biorxiv, medrxiv
+from paper_search_cli.academic_platforms.semantic import SemanticSearcher
 
 
 def run_command(command, *args):
@@ -248,8 +248,8 @@ def test_default_logging_goes_to_stderr_in_cli_process(command, tmp_path):
 import sys
 from unittest.mock import Mock
 import requests
-from paper_search_mcp import cli
-from paper_search_mcp.academic_platforms.medrxiv import MedRxivSearcher
+from paper_search_cli import cli
+from paper_search_cli.academic_platforms.medrxiv import MedRxivSearcher
 
 searcher = MedRxivSearcher()
 searcher.session.get = Mock(side_effect=requests.ConnectionError("offline"))

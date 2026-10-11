@@ -1,6 +1,6 @@
 import unittest
 
-from paper_search_mcp.academic_platforms.pubmed import PubMedSearcher
+from paper_search_cli.academic_platforms.pubmed import PubMedSearcher
 
 
 class TestPubMedSearcher(unittest.TestCase):

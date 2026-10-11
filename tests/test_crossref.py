@@ -1,7 +1,7 @@
 # tests/test_crossref.py
 import unittest
 import requests
-from paper_search_mcp.academic_platforms.crossref import CrossRefSearcher
+from paper_search_cli.academic_platforms.crossref import CrossRefSearcher
 
 def check_api_accessible():
     """检查 CrossRef API 是否可访问

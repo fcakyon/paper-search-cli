@@ -5,9 +5,9 @@ from unittest.mock import Mock, patch
 import pytest
 import requests
 
-from paper_search_mcp import operations as server
-from paper_search_mcp.academic_platforms.openalex import OpenAlexSearcher
-from paper_search_mcp.academic_platforms.openalex_relations import (
+from paper_search_cli import operations as server
+from paper_search_cli.academic_platforms.openalex import OpenAlexSearcher
+from paper_search_cli.academic_platforms.openalex_relations import (
     OpenAlexRelationError, _Budget, normalize_identifier,
 )
 
@@ -210,7 +210,7 @@ def test_redirect_loop_cannot_escape_request_budget():
 
 def test_deadline_stops_after_late_response_without_next_request():
     searcher = searcher_with(page([]))
-    with patch("paper_search_mcp.academic_platforms.openalex_relations.time.monotonic",
+    with patch("paper_search_cli.academic_platforms.openalex_relations.time.monotonic",
                side_effect=[0, 0, 2]):
         with pytest.raises(OpenAlexRelationError, match="time budget"):
             searcher.get_references("W1", timeout_seconds=1)
@@ -219,7 +219,7 @@ def test_deadline_stops_after_late_response_without_next_request():
 
 
 def test_budget_refuses_expired_requests():
-    with patch("paper_search_mcp.academic_platforms.openalex_relations.time.monotonic", side_effect=[0, 2]):
+    with patch("paper_search_cli.academic_platforms.openalex_relations.time.monotonic", side_effect=[0, 2]):
         budget = _Budget(2, 1)
         with pytest.raises(OpenAlexRelationError, match="time budget"):
             budget.request_json(Mock(), "https://api.openalex.org/works/W1")

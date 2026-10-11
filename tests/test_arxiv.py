@@ -7,7 +7,7 @@ from unittest.mock import Mock, patch
 
 import requests
 
-from paper_search_mcp.academic_platforms.arxiv import ArxivSearcher
+from paper_search_cli.academic_platforms.arxiv import ArxivSearcher
 
 
 EMPTY_ATOM_FEED = b"""<?xml version="1.0" encoding="UTF-8"?>
@@ -38,7 +38,7 @@ class TestArxivRateLimiting(unittest.TestCase):
 
         with (
             patch.object(ArxivSearcher, "_pace_locked") as pace,
-            patch("paper_search_mcp.academic_platforms.arxiv.time.sleep") as wait,
+            patch("paper_search_cli.academic_platforms.arxiv.time.sleep") as wait,
         ):
             self.assertEqual(searcher.search("test"), [])
 
@@ -54,7 +54,7 @@ class TestArxivRateLimiting(unittest.TestCase):
 
         with (
             patch.object(ArxivSearcher, "_pace_locked"),
-            patch("paper_search_mcp.academic_platforms.arxiv.time.sleep") as wait,
+            patch("paper_search_cli.academic_platforms.arxiv.time.sleep") as wait,
             self.assertRaisesRegex(requests.RequestException, "Rate exceeded"),
         ):
             searcher.search("test")
@@ -72,7 +72,7 @@ class TestArxivRateLimiting(unittest.TestCase):
 
         with (
             patch.object(ArxivSearcher, "_pace_locked"),
-            patch("paper_search_mcp.academic_platforms.arxiv.time.sleep") as wait,
+            patch("paper_search_cli.academic_platforms.arxiv.time.sleep") as wait,
             self.assertRaisesRegex(requests.RequestException, "HTTP 429"),
         ):
             searcher.search("test")
@@ -90,7 +90,7 @@ class TestArxivRateLimiting(unittest.TestCase):
 
         with (
             patch.object(ArxivSearcher, "_pace_locked"),
-            patch("paper_search_mcp.academic_platforms.arxiv.time.sleep") as wait,
+            patch("paper_search_cli.academic_platforms.arxiv.time.sleep") as wait,
         ):
             self.assertEqual(searcher.search("test"), [])
 
@@ -115,10 +115,10 @@ class TestArxivRateLimiting(unittest.TestCase):
 
         with (
             patch(
-                "paper_search_mcp.academic_platforms.arxiv.time.monotonic",
+                "paper_search_cli.academic_platforms.arxiv.time.monotonic",
                 side_effect=[11.0, 13.0],
             ),
-            patch("paper_search_mcp.academic_platforms.arxiv.time.sleep") as wait,
+            patch("paper_search_cli.academic_platforms.arxiv.time.sleep") as wait,
         ):
             ArxivSearcher._pace_locked()
 

@@ -10,9 +10,9 @@ from unittest.mock import AsyncMock, Mock
 
 import pytest
 
-from paper_search_mcp import cli, tool_cli
-from paper_search_mcp import operations as server
-from paper_search_mcp.tools import TOOLS
+from paper_search_cli import cli, tool_cli
+from paper_search_cli import operations as server
+from paper_search_cli.tools import TOOLS
 
 
 def run_tool(*arguments):
@@ -167,7 +167,7 @@ def test_optional_ieee_tools_match_mcp_and_acm_stays_keyless(configured, tmp_pat
     if configured:
         env["PAPER_SEARCH_MCP_IEEE_API_KEY"] = "offline-test-key"
     result = subprocess.run(
-        [sys.executable, "-m", "paper_search_mcp.cli", "tool", "--list"],
+        [sys.executable, "-m", "paper_search_cli.cli", "tool", "--list"],
         cwd=tmp_path, env=env, capture_output=True, text=True, timeout=20, check=True,
     )
     names = {tool["name"] for tool in json.loads(result.stdout)["tools"]}
@@ -182,11 +182,11 @@ def test_optional_ieee_tools_match_mcp_and_acm_stays_keyless(configured, tmp_pat
 def test_legacy_commands_do_not_import_server(arguments, tmp_path):
     script = """
 import sys
-from paper_search_mcp import cli
+from paper_search_cli import cli
 try:
     cli.main()
 finally:
-    assert 'paper_search_mcp.server' not in sys.modules
+    assert 'paper_search_cli.server' not in sys.modules
 """
     result = subprocess.run(
         [sys.executable, "-c", script, *arguments], cwd=tmp_path, env=clean_env(tmp_path),
@@ -198,7 +198,7 @@ finally:
 
 def test_cli_process_executes_tool_and_exits_without_starting_server(tmp_path):
     result = subprocess.run(
-        [sys.executable, "-m", "paper_search_mcp.cli", "tool", "search_papers", "test", "--sources", "invalid"],
+        [sys.executable, "-m", "paper_search_cli.cli", "tool", "search_papers", "test", "--sources", "invalid"],
         cwd=tmp_path, env=clean_env(tmp_path), capture_output=True, text=True, timeout=15,
     )
     assert result.returncode == 0, result.stderr

@@ -23,26 +23,26 @@ class TestIEEEDisabledByDefault(unittest.TestCase):
             os.environ.pop("PAPER_SEARCH_MCP_IEEE_API_KEY", None)
 
     def test_is_not_configured_without_key(self):
-        from paper_search_mcp.academic_platforms.ieee import IEEESearcher
+        from paper_search_cli.academic_platforms.ieee import IEEESearcher
         searcher = IEEESearcher()
         self.assertFalse(searcher.is_configured())
 
     def test_search_raises_not_implemented_without_key(self):
-        from paper_search_mcp.academic_platforms.ieee import IEEESearcher
+        from paper_search_cli.academic_platforms.ieee import IEEESearcher
         searcher = IEEESearcher()
         with self.assertRaises(NotImplementedError) as ctx:
             searcher.search("transformer attention")
         self.assertIn("IEEE_API_KEY", str(ctx.exception))
 
     def test_download_raises_not_implemented_without_key(self):
-        from paper_search_mcp.academic_platforms.ieee import IEEESearcher
+        from paper_search_cli.academic_platforms.ieee import IEEESearcher
         searcher = IEEESearcher()
         with self.assertRaises(NotImplementedError) as ctx:
             searcher.download_pdf("12345")
         self.assertIn("IEEE_API_KEY", str(ctx.exception))
 
     def test_read_raises_not_implemented_without_key(self):
-        from paper_search_mcp.academic_platforms.ieee import IEEESearcher
+        from paper_search_cli.academic_platforms.ieee import IEEESearcher
         searcher = IEEESearcher()
         with self.assertRaises(NotImplementedError) as ctx:
             searcher.read_paper("12345")
@@ -51,7 +51,7 @@ class TestIEEEDisabledByDefault(unittest.TestCase):
     def test_not_in_all_sources_without_key(self):
         """ieee must NOT appear in ALL_SOURCES when the key is absent."""
         import importlib
-        import paper_search_mcp.operations as srv_module
+        import paper_search_cli.operations as srv_module
         importlib.reload(srv_module)
         self.assertNotIn("ieee", srv_module.ALL_SOURCES)
 
@@ -77,7 +77,7 @@ class TestIEEEIsConfiguredWithKey(unittest.TestCase):
 
     def test_is_configured_with_key(self):
         with unittest.mock.patch.dict(os.environ, {"PAPER_SEARCH_MCP_IEEE_API_KEY": "dummy_test_key"}):
-            from paper_search_mcp.academic_platforms.ieee import IEEESearcher
+            from paper_search_cli.academic_platforms.ieee import IEEESearcher
             searcher = IEEESearcher()
             self.assertTrue(searcher.is_configured())
 
@@ -101,7 +101,7 @@ class TestIEEEIsConfiguredWithKey(unittest.TestCase):
         mock_response = _MockResponse(json_data={"articles": [mock_article]})
 
         with unittest.mock.patch.dict(os.environ, {"PAPER_SEARCH_MCP_IEEE_API_KEY": "test_key"}):
-            from paper_search_mcp.academic_platforms.ieee import IEEESearcher
+            from paper_search_cli.academic_platforms.ieee import IEEESearcher
             searcher = IEEESearcher()
             with unittest.mock.patch.object(searcher.session, "get", return_value=mock_response):
                 papers = searcher.search("quantum computing", max_results=5)
@@ -120,7 +120,7 @@ class TestIEEEIsConfiguredWithKey(unittest.TestCase):
         mock_response = _MockResponse(status_code=500)
 
         with unittest.mock.patch.dict(os.environ, {"PAPER_SEARCH_MCP_IEEE_API_KEY": "test_key"}):
-            from paper_search_mcp.academic_platforms.ieee import IEEESearcher
+            from paper_search_cli.academic_platforms.ieee import IEEESearcher
             searcher = IEEESearcher()
             with unittest.mock.patch.object(searcher.session, "get", return_value=mock_response), unittest.mock.patch("time.sleep"):
                 with self.assertRaisesRegex(RuntimeError, "HTTP 500"):
@@ -129,7 +129,7 @@ class TestIEEEIsConfiguredWithKey(unittest.TestCase):
     def test_parse_date_multi_format(self):
         """Date parser should handle multiple IEEE date formats."""
         with unittest.mock.patch.dict(os.environ, {"PAPER_SEARCH_MCP_IEEE_API_KEY": "test_key"}):
-            from paper_search_mcp.academic_platforms.ieee import IEEESearcher
+            from paper_search_cli.academic_platforms.ieee import IEEESearcher
             searcher = IEEESearcher()
 
             # YYYY-MM-DD
@@ -164,7 +164,7 @@ class TestIEEEIsConfiguredWithKey(unittest.TestCase):
         mock_response = _MockResponse(json_data={"articles": [mock_article]})
 
         with unittest.mock.patch.dict(os.environ, {"PAPER_SEARCH_MCP_IEEE_API_KEY": "test_key"}):
-            from paper_search_mcp.academic_platforms.ieee import IEEESearcher
+            from paper_search_cli.academic_platforms.ieee import IEEESearcher
             searcher = IEEESearcher()
             with unittest.mock.patch.object(searcher.session, "get", return_value=mock_response):
                 papers = searcher.search("test")
@@ -178,7 +178,7 @@ class TestIEEEIsConfiguredWithKey(unittest.TestCase):
         page2 = [{"article_number": str(200 + i), "title": f"Paper {200 + i}"} for i in range(50)]
 
         with unittest.mock.patch.dict(os.environ, {"PAPER_SEARCH_MCP_IEEE_API_KEY": "test_key"}):
-            from paper_search_mcp.academic_platforms.ieee import IEEESearcher
+            from paper_search_cli.academic_platforms.ieee import IEEESearcher
             searcher = IEEESearcher()
             with unittest.mock.patch.object(
                 searcher.session, "get",
@@ -200,7 +200,7 @@ if __name__ == "__main__":
 import pytest
 import requests
 from unittest.mock import Mock, patch
-from paper_search_mcp.academic_platforms.ieee import IEEESearcher
+from paper_search_cli.academic_platforms.ieee import IEEESearcher
 
 
 @pytest.fixture

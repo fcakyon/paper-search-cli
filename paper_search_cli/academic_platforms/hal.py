@@ -74,7 +74,7 @@ class HALSearcher(PaperSource):
                   ``"math"``, ``"sdv"`` (life sciences).
 
         Returns:
-            List of :class:`~paper_search_mcp.paper.Paper` objects.
+            List of :class:`~paper_search_cli.paper.Paper` objects.
         """
         max_results = max(1, min(max_results, 10000))
 

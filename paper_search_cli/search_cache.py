@@ -44,13 +44,13 @@ def _ambient_netrc_possible():
 
 def _public_cache_eligible(searcher):
     module = type(searcher).__module__
-    built_in = any(module == f"paper_search_mcp.academic_platforms.{name}"
+    built_in = any(module == f"paper_search_cli.academic_platforms.{name}"
                    for name in _PUBLIC_CONNECTORS)
     if not built_in and getattr(type(searcher), "search_cache_public", False) is not True:
         return False
     if _ambient_netrc_possible():
         return False
-    if module == "paper_search_mcp.academic_platforms.semantic" and get_env("SEMANTIC_SCHOLAR_API_KEY", ""):
+    if module == "paper_search_cli.academic_platforms.semantic" and get_env("SEMANTIC_SCHOLAR_API_KEY", ""):
         return False  # This connector reads its key dynamically per request.
     # Public API metadata may still differ with credentials/permissions. Until a
     # principal-aware connector cache contract exists, bypass authenticated use.

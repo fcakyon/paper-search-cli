@@ -1,4 +1,4 @@
-# paper_search_mcp/academic_platforms/openaire.py
+# paper_search_cli/academic_platforms/openaire.py
 from typing import List, Optional, Dict, Any
 from datetime import datetime
 import requests

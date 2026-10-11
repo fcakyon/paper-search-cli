@@ -13,7 +13,7 @@ MAX_SEARCH_WORKERS = 4
 
 
 def _worker_command() -> list[str]:
-    return [sys.executable, "-m", "paper_search_mcp.cli_search_worker"]
+    return [sys.executable, "-m", "paper_search_cli.cli_search_worker"]
 
 
 async def _kill_and_reap(

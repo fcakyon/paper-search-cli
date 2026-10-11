@@ -1,6 +1,6 @@
 from datetime import datetime, timezone
 
-from paper_search_mcp.paper import Paper
+from paper_search_cli.paper import Paper
 
 
 def _paper(**overrides):

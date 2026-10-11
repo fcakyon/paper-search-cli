@@ -1,4 +1,4 @@
-# paper_search_mcp/academic_platforms/europepmc.py
+# paper_search_cli/academic_platforms/europepmc.py
 from typing import List, Optional, Dict, Any
 import requests
 import logging

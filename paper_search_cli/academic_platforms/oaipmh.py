@@ -1,4 +1,4 @@
-# paper_search_mcp/academic_platforms/oaipmh.py
+# paper_search_cli/academic_platforms/oaipmh.py
 """Base searcher for OAI-PMH compatible repositories.
 
 OAI-PMH (Open Archives Initiative Protocol for Metadata Harvesting) is a

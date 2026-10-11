@@ -49,10 +49,10 @@ Repository = "https://github.com/fcakyon/paper-search-cli"
 Issues = "https://github.com/fcakyon/paper-search-cli/issues"
 
 [project.scripts]
-paper-search = "paper_search_mcp.cli:main"
+paper-search = "paper_search_cli.cli:main"
 
 [tool.hatch.build.targets.wheel]
-packages = ["paper_search_mcp"]
+packages = ["paper_search_cli"]
 
 [tool.pytest.ini_options]
 python_files = ["test_*.py"]

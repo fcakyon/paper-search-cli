@@ -4,7 +4,7 @@ from unittest.mock import Mock
 import pytest
 import requests
 
-from paper_search_mcp.academic_platforms.institutional import (
+from paper_search_cli.academic_platforms.institutional import (
     PermissionDeniedError, ProviderConnectionError, ProviderResponseError,
     ProviderTimeoutError, RateLimitError, RecordNotFoundError, request_json,
 )

@@ -1,4 +1,4 @@
-# paper_search_mcp/sources/arxiv.py
+# paper_search_cli/sources/arxiv.py
 import logging
 import os
 import re

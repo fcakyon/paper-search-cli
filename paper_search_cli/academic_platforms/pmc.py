@@ -1,4 +1,4 @@
-# paper_search_mcp/academic_platforms/pmc.py
+# paper_search_cli/academic_platforms/pmc.py
 from typing import List, Optional
 import requests
 from xml.etree import ElementTree as ET

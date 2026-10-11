@@ -13,7 +13,7 @@ class TestPackageEntrypoints(unittest.TestCase):
 
         self.assertEqual(
             console_scripts.get("paper-search"),
-            "paper_search_mcp.cli:main",
+            "paper_search_cli.cli:main",
         )
 
 

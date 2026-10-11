@@ -27,7 +27,7 @@ jobs:
         run: uv pip install --system -e ".[dev]"
 
       - name: Compile source
-        run: python -m compileall -q paper_search_mcp tests
+        run: python -m compileall -q paper_search_cli tests
 
       - name: Run deterministic tests
         run: >
@@ -75,7 +75,7 @@ jobs:
 
       - name: Verify wheel entry points
         run: |
-          python -c "import pathlib, zipfile; wheel = next(pathlib.Path('dist').glob('paper_search_cli-*.whl')); z = zipfile.ZipFile(wheel); entry = next(name for name in z.namelist() if name.endswith('.dist-info/entry_points.txt')); data = z.read(entry).decode(); assert 'paper-search = paper_search_mcp.cli:main' in data; print(data)"
+          python -c "import pathlib, zipfile; wheel = next(pathlib.Path('dist').glob('paper_search_cli-*.whl')); z = zipfile.ZipFile(wheel); entry = next(name for name in z.namelist() if name.endswith('.dist-info/entry_points.txt')); data = z.read(entry).decode(); assert 'paper-search = paper_search_cli.cli:main' in data; print(data)"
 
   publish:
     needs: test
@@ -100,7 +100,7 @@ jobs:
 
       - name: Verify wheel entry points
         run: |
-          python -c "import pathlib, zipfile; wheel = next(pathlib.Path('dist').glob('paper_search_cli-*.whl')); z = zipfile.ZipFile(wheel); entry = next(name for name in z.namelist() if name.endswith('.dist-info/entry_points.txt')); data = z.read(entry).decode(); assert 'paper-search = paper_search_mcp.cli:main' in data; print(data)"
+          python -c "import pathlib, zipfile; wheel = next(pathlib.Path('dist').glob('paper_search_cli-*.whl')); z = zipfile.ZipFile(wheel); entry = next(name for name in z.namelist() if name.endswith('.dist-info/entry_points.txt')); data = z.read(entry).decode(); assert 'paper-search = paper_search_cli.cli:main' in data; print(data)"
 
       - name: Publish to PyPI
         uses: pypa/gh-action-pypi-publish@release/v1

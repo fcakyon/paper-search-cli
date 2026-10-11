@@ -9,10 +9,10 @@ from unittest.mock import AsyncMock, Mock
 import pytest
 import requests
 
-from paper_search_mcp import cli
-from paper_search_mcp import operations as server
-from paper_search_mcp.academic_platforms import google_scholar
-from paper_search_mcp.academic_platforms.google_scholar import (
+from paper_search_cli import cli
+from paper_search_cli import operations as server
+from paper_search_cli.academic_platforms import google_scholar
+from paper_search_cli.academic_platforms.google_scholar import (
     GoogleScholarSearchError,
     GoogleScholarSearcher,
 )

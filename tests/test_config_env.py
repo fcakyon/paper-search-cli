@@ -4,7 +4,7 @@ import unittest
 from pathlib import Path
 from unittest.mock import patch
 
-from paper_search_mcp import config
+from paper_search_cli import config
 
 
 class TestConfigEnv(unittest.TestCase):

@@ -3,8 +3,8 @@ import unittest
 from datetime import datetime
 from unittest.mock import patch
 
-from paper_search_mcp import operations as server
-from paper_search_mcp.paper import Paper
+from paper_search_cli import operations as server
+from paper_search_cli.paper import Paper
 
 
 class TestUnpaywallSearchSource(unittest.TestCase):

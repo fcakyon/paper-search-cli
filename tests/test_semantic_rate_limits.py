@@ -5,7 +5,7 @@ from unittest.mock import Mock
 import pytest
 import requests
 
-from paper_search_mcp.academic_platforms import semantic
+from paper_search_cli.academic_platforms import semantic
 
 
 def response(status, headers=None):

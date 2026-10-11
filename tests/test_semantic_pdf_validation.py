@@ -9,7 +9,7 @@ import pytest
 import requests
 from pypdf import PdfReader, PdfWriter
 
-from paper_search_mcp.academic_platforms import semantic
+from paper_search_cli.academic_platforms import semantic
 
 
 @pytest.fixture

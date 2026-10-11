@@ -1,4 +1,4 @@
-# paper_search_mcp/academic_platforms/chemrxiv.py
+# paper_search_cli/academic_platforms/chemrxiv.py
 """Searcher for ChemRxiv chemistry preprint server.
 
 ChemRxiv (Chemical Preprint Server) is a free submission, distribution,

@@ -6,7 +6,7 @@ from unittest.mock import Mock
 
 import pytest
 
-from paper_search_mcp import cli
+from paper_search_cli import cli
 
 
 def paper(identifier, **fields):

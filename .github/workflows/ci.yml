@@ -30,7 +30,7 @@ jobs:
         run: uv pip install --system -e ".[dev]"
 
       - name: Compile source
-        run: python -m compileall -q paper_search_mcp tests
+        run: python -m compileall -q paper_search_cli tests
 
       - name: Run deterministic tests
         run: >

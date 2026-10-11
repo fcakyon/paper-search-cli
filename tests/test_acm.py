@@ -4,7 +4,7 @@ import threading
 import unittest
 import unittest.mock
 
-from paper_search_mcp.academic_platforms.acm import ACMSearcher
+from paper_search_cli.academic_platforms.acm import ACMSearcher
 
 CROSSREF_ITEM = {
     "DOI": "10.1145/3654522.3654560",
@@ -74,7 +74,7 @@ class TestACMDownload(unittest.TestCase):
     def test_blocked_download_points_to_browser_and_fallback(self):
         blocked = unittest.mock.Mock(status_code=403, content=b"<!DOCTYPE html>")
         with unittest.mock.patch(
-            "paper_search_mcp.academic_platforms.acm.requests.get", return_value=blocked
+            "paper_search_cli.academic_platforms.acm.requests.get", return_value=blocked
         ):
             with self.assertRaises(IOError) as ctx:
                 ACMSearcher().download_pdf("10.1145/3292500.3330701")
@@ -86,7 +86,7 @@ class TestACMDownload(unittest.TestCase):
         import tempfile, os
         ok = unittest.mock.Mock(status_code=200, content=b"%PDF-1.7 test")
         with tempfile.TemporaryDirectory() as tmp, unittest.mock.patch(
-            "paper_search_mcp.academic_platforms.acm.requests.get", return_value=ok
+            "paper_search_cli.academic_platforms.acm.requests.get", return_value=ok
         ):
             path = ACMSearcher().download_pdf("10.1145/3292500.3330701", tmp)
             with open(path, "rb") as f:
@@ -96,7 +96,7 @@ class TestACMDownload(unittest.TestCase):
 
 class TestACMReadTool(unittest.TestCase):
     def test_read_runs_off_event_loop_thread(self):
-        from paper_search_mcp import operations as server
+        from paper_search_cli import operations as server
         caller_thread = threading.get_ident()
         def read(paper_id, save_path):
             self.assertNotEqual(threading.get_ident(), caller_thread)
@@ -110,7 +110,7 @@ class TestACMReadTool(unittest.TestCase):
 class TestACMAlwaysEnabled(unittest.TestCase):
     def test_in_all_sources_without_key(self):
         import importlib
-        import paper_search_mcp.operations as srv_module
+        import paper_search_cli.operations as srv_module
         importlib.reload(srv_module)
         self.assertIn("acm", srv_module.ALL_SOURCES)
 

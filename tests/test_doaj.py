@@ -1,7 +1,7 @@
 import unittest
 import requests
 
-from paper_search_mcp.academic_platforms.doaj import DOAJSearcher
+from paper_search_cli.academic_platforms.doaj import DOAJSearcher
 
 
 def check_api_accessible() -> bool:

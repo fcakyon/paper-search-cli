@@ -3,7 +3,7 @@ import unittest
 
 import requests
 
-from paper_search_mcp.academic_platforms.dblp import DBLPSearcher
+from paper_search_cli.academic_platforms.dblp import DBLPSearcher
 
 
 def check_api_accessible():

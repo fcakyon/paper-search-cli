@@ -5,8 +5,8 @@ import subprocess
 import sys
 from unittest.mock import AsyncMock, patch
 
-from paper_search_mcp import operations as server
-from paper_search_mcp.tools import TOOLS
+from paper_search_cli import operations as server
+from paper_search_cli.tools import TOOLS
 
 
 def _contains_nullable_union(schema):

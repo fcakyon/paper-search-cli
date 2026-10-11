@@ -10,8 +10,8 @@ from unittest.mock import Mock, patch
 
 import pytest
 
-from paper_search_mcp import operations as server
-from paper_search_mcp.search_cache import CacheSettings, SearchCache, search_key
+from paper_search_cli import operations as server
+from paper_search_cli.search_cache import CacheSettings, SearchCache, search_key
 
 
 @pytest.fixture(autouse=True)
@@ -108,7 +108,7 @@ def test_credentialed_and_institutional_sources_bypass_cache(credential):
     assert search_key(provider, "Q", 10, {}) is None
     class Institutional:
         pass
-    Institutional.__module__ = "paper_search_mcp.academic_platforms.scopus"
+    Institutional.__module__ = "paper_search_cli.academic_platforms.scopus"
     assert search_key(Institutional(), "Q", 10, {}) is None
 
 
@@ -129,7 +129,7 @@ def test_session_auth_and_nonpublic_cookies_bypass_cache():
 
 def test_query_keys_do_not_use_hash_as_sole_identity():
     digest = SimpleNamespace(hexdigest=lambda: "collision")
-    with patch("paper_search_mcp.search_cache.hashlib.sha256", return_value=digest):
+    with patch("paper_search_cli.search_cache.hashlib.sha256", return_value=digest):
         assert search_key(Provider(), "query A", 10, {}) != search_key(Provider(), "query B", 10, {})
 
 
@@ -148,32 +148,32 @@ def test_hit_is_independent_copy_and_survives_new_cache_instance(cache):
 
 
 def test_ttl_boundary_and_no_refresh_on_read(cache):
-    with patch("paper_search_mcp.search_cache.time.time", return_value=100):
+    with patch("paper_search_cli.search_cache.time.time", return_value=100):
         write(cache)
-    with patch("paper_search_mcp.search_cache.time.time", return_value=100 + cache.settings.ttl_seconds - 1):
+    with patch("paper_search_cli.search_cache.time.time", return_value=100 + cache.settings.ttl_seconds - 1):
         assert cache.lookup("key")[0] is not None
-    with patch("paper_search_mcp.search_cache.time.time", return_value=100 + cache.settings.ttl_seconds):
+    with patch("paper_search_cli.search_cache.time.time", return_value=100 + cache.settings.ttl_seconds):
         assert cache.lookup("key")[0] is None
 
 
 def test_shorter_ttl_and_clock_rollback_do_not_resurrect_stale_entries(cache):
-    with patch("paper_search_mcp.search_cache.time.time", return_value=100):
+    with patch("paper_search_cli.search_cache.time.time", return_value=100):
         write(cache)
-    with patch("paper_search_mcp.search_cache.time.time", return_value=111):
+    with patch("paper_search_cli.search_cache.time.time", return_value=111):
         shortened = SearchCache(replace(cache.settings, ttl_seconds=10))
         assert shortened.lookup("key")[0] is None
-    with patch("paper_search_mcp.search_cache.time.time", return_value=200):
+    with patch("paper_search_cli.search_cache.time.time", return_value=200):
         write(cache)
-    with patch("paper_search_mcp.search_cache.time.time", return_value=199):
+    with patch("paper_search_cli.search_cache.time.time", return_value=199):
         assert cache.lookup("key")[0] is None
 
 
 def test_bounded_entries_evict_oldest_deterministically(cache):
     cache = SearchCache(replace(cache.settings, max_entries=2))
     for i in range(3):
-        with patch("paper_search_mcp.search_cache.time.time", return_value=100 + i):
+        with patch("paper_search_cli.search_cache.time.time", return_value=100 + i):
             write(cache, f"key{i}")
-    with patch("paper_search_mcp.search_cache.time.time", return_value=103):
+    with patch("paper_search_cli.search_cache.time.time", return_value=103):
         assert cache.lookup("key0")[0] is None
         assert cache.lookup("key1")[0] and cache.lookup("key2")[0]
         assert cache.status()["entries"] == 2
@@ -403,13 +403,13 @@ def test_clear_can_empty_database_after_disk_limit_is_lowered(cache):
 
 
 def test_dynamic_semantic_key_is_not_cached():
-    from paper_search_mcp.academic_platforms.semantic import SemanticSearcher
+    from paper_search_cli.academic_platforms.semantic import SemanticSearcher
     with patch.dict(os.environ, {"PAPER_SEARCH_MCP_SEMANTIC_SCHOLAR_API_KEY": "private"}):
         assert search_key(SemanticSearcher(), "Q", 10, {}) is None
 
 
 def test_public_builtin_without_credentials_is_cacheable():
-    from paper_search_mcp.academic_platforms.openalex import OpenAlexSearcher
+    from paper_search_cli.academic_platforms.openalex import OpenAlexSearcher
     assert search_key(OpenAlexSearcher(api_key="", email=""), "Q", 10, {}) is not None
 
 
@@ -441,7 +441,7 @@ def test_warm_lookup_does_not_reinitialize_schema_or_prune_with_write_locks(cach
         con.set_trace_callback(statements.append)
         return con
 
-    with patch("paper_search_mcp.search_cache.sqlite3.connect", traced_connect):
+    with patch("paper_search_cli.search_cache.sqlite3.connect", traced_connect):
         assert SearchCache(cache.settings).lookup("key")[0] == [{"title": "key"}]
         assert SearchCache(cache.settings).status()["available"]
     prohibited = ("BEGIN IMMEDIATE", "CREATE ", "INSERT ", "UPDATE ", "DELETE ",
@@ -450,10 +450,10 @@ def test_warm_lookup_does_not_reinitialize_schema_or_prune_with_write_locks(cach
 
 
 def test_expired_lookup_is_read_only_and_next_write_prunes_shortened_ttl(cache):
-    with patch("paper_search_mcp.search_cache.time.time", return_value=100):
+    with patch("paper_search_cli.search_cache.time.time", return_value=100):
         write(cache, "expired")
     shortened = SearchCache(replace(cache.settings, ttl_seconds=10))
-    with patch("paper_search_mcp.search_cache.time.time", return_value=111):
+    with patch("paper_search_cli.search_cache.time.time", return_value=111):
         with sqlite3.connect(cache.settings.path) as writer:
             writer.execute("BEGIN IMMEDIATE")
             assert shortened.lookup("expired") == (None, 0)
@@ -487,7 +487,7 @@ def test_simultaneous_initializers_recheck_ownership_after_obtaining_write_lock(
     def connect(*args, **kwargs):
         return original_connect(*args, **kwargs, factory=SynchronizedConnection)
 
-    with patch("paper_search_mcp.search_cache.sqlite3.connect", connect):
+    with patch("paper_search_cli.search_cache.sqlite3.connect", connect):
         with ThreadPoolExecutor(max_workers=2) as pool:
             results = list(pool.map(lambda _: SearchCache(cache.settings).lookup("missing"), range(2)))
     assert results == [(None, 0), (None, 0)]
@@ -557,7 +557,7 @@ def test_reserved_writer_truthfully_skips_contending_write_and_recovers(cache):
     original_connect = sqlite3.connect
     with original_connect(cache.settings.path) as writer:
         writer.execute("BEGIN IMMEDIATE")
-        with patch("paper_search_mcp.search_cache.sqlite3.connect", wraps=original_connect) as connect:
+        with patch("paper_search_cli.search_cache.sqlite3.connect", wraps=original_connect) as connect:
             with ThreadPoolExecutor(max_workers=1) as pool:
                 # Keep the writer reserved until the contender returns, rather
                 # than guessing how long a shared CI runner takes to fsync.

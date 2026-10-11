@@ -1,7 +1,7 @@
 import unittest
 import os
 import requests
-from paper_search_mcp.academic_platforms.google_scholar import (
+from paper_search_cli.academic_platforms.google_scholar import (
     GoogleScholarSearchError,
     GoogleScholarSearcher,
 )

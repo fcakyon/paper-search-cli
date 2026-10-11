@@ -53,7 +53,7 @@ def send(self, request, **kwargs):
     return response
 
 requests.Session.send = send
-runpy.run_module('paper_search_mcp.cli', run_name='__main__')
+runpy.run_module('paper_search_cli.cli', run_name='__main__')
 '''
     env = {key: value for key, value in os.environ.items()
            if not key.startswith(('PAPER_SEARCH', 'TEST_WITHOUT_MCP'))}

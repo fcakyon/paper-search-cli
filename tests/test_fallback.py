@@ -5,7 +5,7 @@ import unittest
 from types import SimpleNamespace
 from unittest.mock import AsyncMock, MagicMock, patch
 
-from paper_search_mcp import operations as server
+from paper_search_cli import operations as server
 
 
 def _empty_searcher():
@@ -21,7 +21,7 @@ class TestDownloadWithFallback(unittest.TestCase):
                 side_effect=Exception("primary failed"),
             ),
             patch(
-                "paper_search_mcp.operations._try_repository_fallback",
+                "paper_search_cli.operations._try_repository_fallback",
                 new=AsyncMock(return_value=(None, "repo failed")),
             ),
             patch.object(
@@ -30,7 +30,7 @@ class TestDownloadWithFallback(unittest.TestCase):
                 return_value=None,
             ),
             patch(
-                "paper_search_mcp.operations.SciHubFetcher.download_pdf",
+                "paper_search_cli.operations.SciHubFetcher.download_pdf",
                 side_effect=AssertionError("Sci-Hub should not be called"),
             ),
         ):
@@ -53,11 +53,11 @@ class TestDownloadWithFallback(unittest.TestCase):
                 side_effect=Exception("primary failed"),
             ),
             patch(
-                "paper_search_mcp.operations._try_repository_fallback",
+                "paper_search_cli.operations._try_repository_fallback",
                 new=AsyncMock(return_value=("/tmp/repo.pdf", "")),
             ),
             patch(
-                "paper_search_mcp.operations.SciHubFetcher.download_pdf",
+                "paper_search_cli.operations.SciHubFetcher.download_pdf",
                 side_effect=AssertionError("Sci-Hub should not be called"),
             ),
         ):
@@ -80,7 +80,7 @@ class TestDownloadWithFallback(unittest.TestCase):
                 side_effect=Exception("primary failed"),
             ),
             patch(
-                "paper_search_mcp.operations._try_repository_fallback",
+                "paper_search_cli.operations._try_repository_fallback",
                 new=AsyncMock(return_value=(None, "repo failed")),
             ),
             patch.object(
@@ -89,7 +89,7 @@ class TestDownloadWithFallback(unittest.TestCase):
                 return_value="https://example.org/oa.pdf",
             ),
             patch(
-                "paper_search_mcp.operations._download_from_url",
+                "paper_search_cli.operations._download_from_url",
                 new=AsyncMock(return_value="/tmp/unpaywall.pdf"),
             ) as download,
         ):
@@ -115,7 +115,7 @@ class TestDownloadWithFallback(unittest.TestCase):
                 side_effect=Exception("primary failed"),
             ),
             patch(
-                "paper_search_mcp.operations._try_repository_fallback",
+                "paper_search_cli.operations._try_repository_fallback",
                 new=AsyncMock(return_value=(None, "repo failed")),
             ),
             patch.object(
@@ -149,7 +149,7 @@ class TestDownloadWithFallback(unittest.TestCase):
                 side_effect=Exception("primary failed"),
             ),
             patch(
-                "paper_search_mcp.operations._try_repository_fallback",
+                "paper_search_cli.operations._try_repository_fallback",
                 new=fake_repository,
             ),
             patch.object(
@@ -186,7 +186,7 @@ class TestDownloadWithFallback(unittest.TestCase):
                     side_effect=Exception("primary failed"),
                 ),
                 patch(
-                    "paper_search_mcp.operations._try_repository_fallback",
+                    "paper_search_cli.operations._try_repository_fallback",
                     new=AsyncMock(return_value=(None, "repo failed")),
                 ),
                 patch.object(
@@ -195,7 +195,7 @@ class TestDownloadWithFallback(unittest.TestCase):
                     return_value=None,
                 ),
                 patch(
-                    "paper_search_mcp.operations.SciHubFetcher.download_pdf",
+                    "paper_search_cli.operations.SciHubFetcher.download_pdf",
                     return_value=downloaded_path,
                 ),
                 patch.object(
@@ -236,7 +236,7 @@ class TestDownloadWithFallback(unittest.TestCase):
                     side_effect=Exception("primary failed"),
                 ),
                 patch(
-                    "paper_search_mcp.operations._try_repository_fallback",
+                    "paper_search_cli.operations._try_repository_fallback",
                     new=AsyncMock(return_value=(None, "repo failed")),
                 ),
                 patch.object(
@@ -245,7 +245,7 @@ class TestDownloadWithFallback(unittest.TestCase):
                     return_value=None,
                 ),
                 patch(
-                    "paper_search_mcp.operations.SciHubFetcher.download_pdf",
+                    "paper_search_cli.operations.SciHubFetcher.download_pdf",
                     return_value=downloaded_path,
                 ),
                 patch.object(

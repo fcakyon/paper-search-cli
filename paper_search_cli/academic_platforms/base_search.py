@@ -1,4 +1,4 @@
-# paper_search_mcp/academic_platforms/base_search.py
+# paper_search_cli/academic_platforms/base_search.py
 """Searcher for BASE (Bielefeld Academic Search Engine).
 
 BASE is one of the world's most voluminous search engines especially for

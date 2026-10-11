@@ -4,7 +4,7 @@ import tempfile
 import unittest
 from unittest.mock import AsyncMock, patch
 
-from paper_search_mcp import operations as server
+from paper_search_cli import operations as server
 
 
 class TestPaperOperations(unittest.TestCase):

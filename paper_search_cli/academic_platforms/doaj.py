@@ -1,4 +1,4 @@
-# paper_search_mcp/academic_platforms/doaj.py
+# paper_search_cli/academic_platforms/doaj.py
 """Searcher for DOAJ (Directory of Open Access Journals).
 
 DOAJ is a community-curated online directory that indexes and provides

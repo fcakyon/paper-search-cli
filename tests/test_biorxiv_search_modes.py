@@ -3,7 +3,7 @@ from unittest.mock import Mock
 
 import pytest
 
-from paper_search_mcp.academic_platforms.biorxiv import BioRxivSearcher
+from paper_search_cli.academic_platforms.biorxiv import BioRxivSearcher
 
 
 def _mock_response(collection):

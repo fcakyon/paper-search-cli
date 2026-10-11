@@ -9,8 +9,8 @@ import requests
 from pypdf import PdfWriter
 from pypdf.generic import DictionaryObject, NameObject, DecodedStreamObject
 
-from paper_search_mcp.academic_platforms.openreview import OpenReviewSearcher, OpenReviewError
-from paper_search_mcp.academic_platforms.public_pdf import save_verified_pdf
+from paper_search_cli.academic_platforms.openreview import OpenReviewSearcher, OpenReviewError
+from paper_search_cli.academic_platforms.public_pdf import save_verified_pdf
 
 
 def response(data=None, status=200, body=b""):
@@ -188,14 +188,14 @@ def test_bad_pdf_never_replaces_good_file(body, tmp_path):
 
 
 def test_pdf_size_bound(tmp_path, monkeypatch):
-    monkeypatch.setattr("paper_search_mcp.academic_platforms.public_pdf.MAX_PDF_BYTES", 20)
+    monkeypatch.setattr("paper_search_cli.academic_platforms.public_pdf.MAX_PDF_BYTES", 20)
     with pytest.raises(ValueError, match="limit"):
         save_verified_pdf(response(body=pdf_bytes()), tmp_path / "large.pdf", "Verified public research")
     assert not list(tmp_path.iterdir())
 
 
 def test_registration_and_unified_error(monkeypatch):
-    from paper_search_mcp import cli, operations as server
+    from paper_search_cli import cli, operations as server
     assert "openreview" in cli.ALL_SOURCES
     assert isinstance(cli._get_searcher("openreview"), OpenReviewSearcher)
     assert "openreview" in server.ALL_SOURCES

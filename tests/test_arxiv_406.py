@@ -5,8 +5,8 @@ from unittest.mock import Mock, patch
 import pytest
 import requests
 
-from paper_search_mcp import operations as server
-from paper_search_mcp.academic_platforms.arxiv import ArxivSearcher
+from paper_search_cli import operations as server
+from paper_search_cli.academic_platforms.arxiv import ArxivSearcher
 from tests.test_arxiv import EMPTY_ATOM_FEED, response_with
 
 
@@ -38,7 +38,7 @@ def paced_searcher():
     searcher = ArxivSearcher()
     with (
         patch.object(ArxivSearcher, "_pace_locked") as pace,
-        patch("paper_search_mcp.academic_platforms.arxiv.time.sleep") as wait,
+        patch("paper_search_cli.academic_platforms.arxiv.time.sleep") as wait,
     ):
         yield searcher, pace, wait
 
@@ -155,7 +155,7 @@ import pytest
 import requests
 from pypdf import PdfWriter
 
-from paper_search_mcp.academic_platforms import arxiv
+from paper_search_cli.academic_platforms import arxiv
 
 
 @pytest.fixture

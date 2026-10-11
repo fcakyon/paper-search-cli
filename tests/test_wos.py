@@ -5,11 +5,11 @@ from unittest.mock import Mock
 
 import pytest
 
-from paper_search_mcp import cli, config
-from paper_search_mcp import operations as server
-from paper_search_mcp.tools import TOOLS
-from paper_search_mcp.academic_platforms.institutional import CredentialsRequiredError, ProviderResponseError
-from paper_search_mcp.academic_platforms.wos import WebOfScienceSearcher
+from paper_search_cli import cli, config
+from paper_search_cli import operations as server
+from paper_search_cli.tools import TOOLS
+from paper_search_cli.academic_platforms.institutional import CredentialsRequiredError, ProviderResponseError
+from paper_search_cli.academic_platforms.wos import WebOfScienceSearcher
 
 
 def hit(number=1):
@@ -149,7 +149,7 @@ def test_cli_and_mcp_database_option_parity(monkeypatch, capsys):
     asyncio.run(cli.cmd_search(args))
     cli_result = json.loads(capsys.readouterr().out)
     cli_params = searcher.session.get.call_args.kwargs['params']
-    monkeypatch.setattr('paper_search_mcp.academic_platforms.wos.WebOfScienceSearcher', lambda: searcher)
+    monkeypatch.setattr('paper_search_cli.academic_platforms.wos.WebOfScienceSearcher', lambda: searcher)
     mcp_result = asyncio.run(server.search_wos('TI=(test)', 4, 'MEDLINE'))
     assert cli_result['papers'] == mcp_result
     assert cli_params == searcher.session.get.call_args.kwargs['params']
