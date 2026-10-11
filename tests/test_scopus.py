@@ -243,6 +243,24 @@ def test_unsafe_or_non_article_xml_rejected(searcher, content):
         searcher.read_paper('1', full_text=True)
 
 
+@pytest.mark.parametrize('encoding', ['utf-8', 'utf-16'])
+def test_namespaced_article_preserves_mixed_content(searcher, encoding):
+    """Keep nested text, comments and non-ASCII characters through XML changes."""
+    xml = article(body='<body>First <section>café <![CDATA[<result>]]><!-- omit --> tail</section> end</body>').decode()
+    content = (f'<?xml version="1.0" encoding="{encoding}"?>' + xml).encode(encoding)
+    searcher.session.get.side_effect = [response(details()), response(content=content)]
+    assert searcher.read_paper('1', full_text=True)['full_text'] == 'First café <result> tail end'
+
+
+@pytest.mark.parametrize('encoding', ['utf-8', 'utf-16'])
+def test_article_dtd_is_rejected_even_without_entity_use(searcher, encoding):
+    """Retain the existing DTD rejection across input encodings."""
+    xml = f'<?xml version="1.0" encoding="{encoding}"?><!DOCTYPE full-text-retrieval-response>' + article().decode()
+    searcher.session.get.side_effect = [response(details()), response(content=xml.encode(encoding))]
+    with pytest.raises(ProviderResponseError):
+        searcher.read_paper('1', full_text=True)
+
+
 def test_no_abstract_or_body_is_unavailable(searcher):
     searcher.session.get.return_value = response(details(abstract=''))
     assert searcher.read_paper('1')['status'] == 'unavailable'
