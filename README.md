@@ -6,12 +6,14 @@
 
 <p align="center">Search papers, download PDFs, and follow citations from your terminal.</p>
 
-![80 to 16 packages, 75.5 to 12.7 MB installed, and 113 to 38 ms startup compared with upstream](docs/images/cli-comparison.webp)
+![80 to 16 packages, 75.5 to 12.7 MB installed, 113 to 38 ms startup, and 366 to 0 MB background RAM between commands](docs/images/cli-comparison.webp)
 
 <details>
 <summary>How we measured</summary>
 
 Fresh installs on macOS arm64, Python 3.13.7, 11 October 2026: [upstream cab1b5c](https://github.com/openags/paper-search-mcp/commit/cab1b5c) versus this fork's 0.2.0 wheel. Counts include the app, exclude development tools. Size is installed file bytes in decimal MB. Startup is the median of five `--help` launches. Search latency depends on providers.
+
+Background RAM is a separate deployment comparison on macOS 27.0.1 arm64 with Apple container 1.5.0. The idle MCP server completed initialization using `mcp/paper-search` at image digest `sha256:19d0af269a5531403fbb042aad8277d1a9ec2315c972769c7ca8efb3a76eca34` (upstream c8b6421). Its macOS VM process RSS was 357,040 KiB, rounded to 366 MB. This includes guest memory; it is not Docker Desktop memory or total runtime overhead. The CLI exits after each command, leaving 0 MB of background process memory; running commands still use RAM. Upstream also supports running without a container.
 
 </details>
 
