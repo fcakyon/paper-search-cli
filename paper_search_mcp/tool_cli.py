@@ -1,9 +1,4 @@
-"""Expose the registered MCP tools without a second implementation or registry.
-
-The tool subcommand and positional/flag convention adapt PR #78 by kalomak.
-Discovery and execution use the MCP server's public API, so optional tools,
-validation, timeouts, and source restrictions stay with their MCP definitions.
-"""
+"""Call every registered paper operation directly from the command line."""
 
 from __future__ import annotations
 
@@ -19,7 +14,7 @@ def _boolean(value: str) -> bool:
 
 
 def _argument_type(schema: dict[str, Any]) -> Any:
-    """Convert shell strings; the MCP dispatcher performs final validation."""
+    """Convert shell strings; the shared argument model performs final validation."""
     return {
         "string": str,
         "integer": int,
@@ -31,25 +26,25 @@ def _argument_type(schema: dict[str, Any]) -> Any:
 def build_tool_parser(tools: list[Any]) -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog="paper-search tool",
-        description="Call the same tools as the MCP server. Required arguments "
+        description="Call a paper operation directly. Required arguments "
         "are positional; optional arguments use --kebab-case flags.",
     )
     parser.add_argument(
         "--list", action="store_true", dest="_list_tools",
-        help="List available tools with their MCP schemas and annotations as JSON",
+        help="List paper operations, argument and output schemas as JSON",
     )
     subparsers = parser.add_subparsers(dest="_tool_name")
     for tool in tools:
-        description = tool.description or tool.name
+        description = tool["description"] or tool["name"]
         command = subparsers.add_parser(
-            tool.name,
+            tool["name"],
             help=description.splitlines()[0],
             description=description,
             formatter_class=argparse.RawDescriptionHelpFormatter,
             allow_abbrev=False,
         )
-        properties = tool.inputSchema.get("properties", {})
-        required = set(tool.inputSchema.get("required", []))
+        properties = tool["inputSchema"].get("properties", {})
+        required = set(tool["inputSchema"].get("required", []))
         for name, schema in properties.items():
             help_text = schema.get("description", schema.get("title", name))
             if name in required:
@@ -75,35 +70,11 @@ def build_tool_parser(tools: list[Any]) -> argparse.ArgumentParser:
     return parser
 
 
-def _print_result(result: Any) -> None:
-    """Render the MCP result as ordinary JSON or plain text for shell users."""
-    # FastMCP returns (content, structuredContent) for typed return values. Its
-    # generated schemas wrap primitive, list, and generic dict returns in result.
-    if isinstance(result, tuple):
-        _content, structured = result
-        result = structured.get("result", structured)
-        if isinstance(result, str):
-            print(result)
-        else:
-            print(json.dumps(result, indent=2, default=str))
-    elif isinstance(result, dict):
-        print(json.dumps(result, indent=2, default=str))
-    else:
-        # Tools without a structured output schema return MCP content blocks.
-        # All current tools return text; retain other blocks in JSON if added.
-        if all(getattr(item, "type", None) == "text" for item in result):
-            print("\n".join(item.text for item in result))
-        else:
-            print(json.dumps([item.model_dump(mode="json") for item in result], indent=2))
-
-
 async def cmd_tool(args: argparse.Namespace) -> int:
-    # Do not import server (or instantiate all its connectors) for legacy CLI
-    # commands, top-level help, or parser construction.
     try:
-        from .server import mcp
+        from .operations import TOOLS
 
-        tools = await mcp.list_tools()
+        tools = [tool.schema(include_output=args.list_tools) for tool in TOOLS.values()]
         parser = build_tool_parser(tools)
         argv = list(args.tool_args)
         if args.tool_help:
@@ -115,7 +86,7 @@ async def cmd_tool(args: argparse.Namespace) -> int:
             if parsed._tool_name is not None:
                 parser.error("--list cannot be combined with a tool invocation")
             print(json.dumps(
-                {"tools": [tool.model_dump(mode="json", exclude_none=True) for tool in tools]},
+                {"tools": tools},
                 indent=2,
             ))
             return 0
@@ -126,7 +97,9 @@ async def cmd_tool(args: argparse.Namespace) -> int:
             for name in parsed._tool_parameter_names
             if hasattr(parsed, name)
         }
-        _print_result(await mcp.call_tool(parsed._tool_name, arguments))
+        registered = TOOLS[parsed._tool_name]
+        result = await registered.function(**registered.arguments.model_validate(arguments).model_dump())
+        print(result if isinstance(result, str) else json.dumps(result, indent=2, default=str))
         return 0
     except Exception as exc:
         print(json.dumps({"status": "error", "message": str(exc)}))

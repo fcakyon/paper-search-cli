@@ -9,25 +9,18 @@ PICO extraction or citation resolution.
 
 ## Use
 
-Download a paper using an existing source, keeping it in the server's local
-`./downloads` directory. Then pass its **relative filename**, for example:
-
-```python
-await extract_sections("2301.00001.pdf", max_pages=20, max_chars=40000)
-```
-
-The existing generic CLI discovers the tool automatically:
+Download a PDF to `./downloads`, then pass its relative filename:
 
 ```bash
 paper-search tool extract_sections 2301.00001.pdf --max-pages 20 --max-chars 40000
 ```
 
 If an operator uses a different download directory, they can set
-`PAPER_SEARCH_MCP_SECTION_PDF_ROOT` to that directory before starting the server.
-Its default is `./downloads`, relative to the server's working directory. An
+`PAPER_SEARCH_MCP_SECTION_PDF_ROOT` to that directory before running the command.
+Its default is `./downloads`, relative to the working directory. An
 explicitly empty setting is rejected rather than expanding access to that
 working directory.
-The tool has no root argument: a remote caller cannot select a new read root.
+The tool has no root argument: the configured root controls which files it can read.
 This setting only controls section extraction; it does not change the existing
 connectors' download locations or the access policies of other tools.
 
@@ -56,7 +49,7 @@ errors, not a misleading complete/empty result.
 The parent passes bounded verified bytes and scalar budgets to the parser,
 never a path or credentials. It drains the result while the child runs, including
 results larger than a pipe buffer, and terminates/reaps the child on timeout or
-MCP cancellation. Capacity remains occupied until cleanup completes. The two
+command cancellation. Capacity remains occupied until cleanup completes. The two
 admitted jobs and their bounded supervision/cancellation monitors are separate
 from provider searches.
 The PDF's regular-file read happens before parser isolation; unresponsive
@@ -69,10 +62,10 @@ clear error before reading a PDF. Other tools are unaffected. The CPU guard is
 rounded up to whole seconds with one second of margin; the parent deadline is
 independent. The worker applies parser limits with pypdf's context-local API on
 newer versions and its legacy constants in the isolated child on the locked
-6.9.2 version, without changing server-wide parser behavior.
+6.9.2 version, without changing parser behavior in the parent process.
 
 These are resource and input-path controls, not a full OS/filesystem/network
-sandbox for arbitrary parser vulnerabilities. Keep the service unprivileged and
+sandbox for arbitrary parser vulnerabilities. Run the command without elevated privileges and
 OS-isolated for untrusted/remote workloads. Existing download/read tools retain
 their own access behavior; this addition does not make them multi-tenant-safe.
 
@@ -109,10 +102,10 @@ truncation metadata make the processed scope explicit.
 Deterministic tests use locally generated PDFs and cover real pypdf extraction,
 page spans, repeated/unknown/combined headings, exact text slices, all budgets,
 blank/encrypted/corrupt inputs, path traversal, symlink and directory-swap attacks,
-strict MCP wire validation, real generic CLI output above a pipe buffer, bounded
+strict argument validation, real generic CLI output above a pipe buffer, bounded
 compressed expansion, memory-limit rejection, process-start failure cleanup,
-non-cooperative parser termination and MCP cancellation. No academic-provider
-access is used. The tool is included in authenticated HTTP/stdio registry checks.
+non-cooperative parser termination and command cancellation. No academic-provider
+access is used. The same operation is called directly by the CLI.
 
 Parser-limit references: [pypdf security](https://pypdf.readthedocs.io/en/latest/user/security.html)
 and [configuration](https://pypdf.readthedocs.io/en/latest/modules/configuration.html).

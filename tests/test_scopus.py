@@ -7,7 +7,8 @@ from unittest.mock import Mock
 import pytest
 import requests
 
-from paper_search_mcp import cli, config, server
+from paper_search_mcp import cli, config
+from paper_search_mcp import operations as server
 from paper_search_mcp.academic_platforms.institutional import (
     CredentialsRequiredError, IdentityMismatchError, PermissionDeniedError,
     ProviderResponseError, ProviderTimeoutError, RateLimitError,

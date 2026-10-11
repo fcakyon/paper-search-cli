@@ -91,9 +91,9 @@ def test_presets_never_add_optional_paid_or_restricted_sources(preset, monkeypat
 def test_get_searcher_only_initializes_requested_source_and_caches(monkeypatch):
     arxiv = Mock()
     unused = Mock(side_effect=AssertionError("Unselected source initialized"))
-    monkeypatch.setattr(cli, "ArxivSearcher", arxiv)
-    monkeypatch.setattr(cli, "CORESearcher", unused)
-    monkeypatch.setattr(cli, "UnpaywallResolver", unused)
+    monkeypatch.setattr("paper_search_mcp.academic_platforms.arxiv.ArxivSearcher", arxiv)
+    monkeypatch.setattr("paper_search_mcp.academic_platforms.core.CORESearcher", unused)
+    monkeypatch.setattr("paper_search_mcp.academic_platforms.unpaywall.UnpaywallResolver", unused)
     assert cli._get_searcher("arxiv") is arxiv.return_value
     assert cli._get_searcher("arxiv") is arxiv.return_value
     arxiv.assert_called_once_with()
@@ -112,8 +112,8 @@ def test_single_source_commands_are_lazy(command, method, result, monkeypatch, c
     searcher = Mock()
     getattr(searcher, method).return_value = result
     constructor = Mock(return_value=searcher)
-    monkeypatch.setattr(cli, "ArxivSearcher", constructor)
-    monkeypatch.setattr(cli, "CORESearcher", Mock(side_effect=AssertionError("Unused source")))
+    monkeypatch.setattr("paper_search_mcp.academic_platforms.arxiv.ArxivSearcher", constructor)
+    monkeypatch.setattr("paper_search_mcp.academic_platforms.core.CORESearcher", Mock(side_effect=AssertionError("Unused source")))
     args = cli.build_parser().parse_args([command, "arxiv", "1234.5678"])
     assert asyncio.run(getattr(cli, f"cmd_{command}")(args)) == 0
     assert list(cli.SEARCHERS) == ["arxiv"]

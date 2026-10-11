@@ -5,7 +5,7 @@ from unittest.mock import Mock, patch
 import pytest
 import requests
 
-from paper_search_mcp import server
+from paper_search_mcp import operations as server
 from paper_search_mcp.academic_platforms.openalex import OpenAlexSearcher
 from paper_search_mcp.academic_platforms.openalex_relations import (
     OpenAlexRelationError, _Budget, normalize_identifier,

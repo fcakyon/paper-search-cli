@@ -8,7 +8,7 @@ from datetime import datetime, timezone
 import re
 from urllib.parse import quote
 
-from lxml import etree
+from xml.etree import ElementTree as etree
 import requests
 
 from .base import PaperSource
@@ -218,20 +218,23 @@ class ScopusSearcher(PaperSource):
     def _verified_article_body(content: bytes, expected_doi: str, expected_pii: str) -> str:
         if len(content) > 8 * 1024 * 1024:
             raise ProviderResponseError('sciencedirect', 'Article exceeds the 8 MiB parsing limit.')
-        parser = etree.XMLParser(resolve_entities=False, no_network=True, load_dtd=False,
-                                 remove_comments=True, remove_pis=True)
+        class ArticleTreeBuilder(etree.TreeBuilder):
+            def doctype(self, name, pubid, system):
+                raise ValueError('Article DTDs are not supported')
+
+        parser = etree.XMLParser(target=ArticleTreeBuilder())
         try:
             root = etree.fromstring(content, parser)
-        except (etree.XMLSyntaxError, ValueError) as exc:
+        except (etree.ParseError, ValueError) as exc:
             raise ProviderResponseError('sciencedirect', 'Expected structured article XML.') from exc
-        if root.getroottree().docinfo.doctype or etree.QName(root).localname != 'full-text-retrieval-response':
+        if root.tag.rsplit('}', 1)[-1] != 'full-text-retrieval-response':
             raise ProviderResponseError('sciencedirect', 'Unexpected article XML envelope.')
-        core = root.xpath('./*[local-name()="coredata"]')
+        core = root.findall("./{*}coredata")
         if len(core) != 1:
             raise IdentityMismatchError('sciencedirect', 'Article identity metadata is missing.')
         def values(name, normalize):
             return {normalize(''.join(node.itertext())) for node in core[0]
-                    if etree.QName(node).localname == name} - {''}
+                    if node.tag.rsplit('}', 1)[-1] == name} - {''}
         dois = values('doi', _doi)
         piis = values('pii', _pii)
         if (expected_doi and dois and dois != {expected_doi}) or (expected_pii and piis and piis != {expected_pii}):
@@ -240,7 +243,7 @@ class ScopusSearcher(PaperSource):
             raise IdentityMismatchError('sciencedirect', 'Article DOI/PII could not be verified.')
         # Never treat coredata/abstract/originalText strings as full text. Only a
         # structured article body qualifies; reference DOI mentions cannot prove identity.
-        bodies = root.xpath('./*[local-name()="originalText"]//*[local-name()="body"]')
+        bodies = root.findall("./{*}originalText//{*}body")
         if len(bodies) != 1:
             return ''
         return ' '.join(' '.join(bodies[0].itertext()).split())

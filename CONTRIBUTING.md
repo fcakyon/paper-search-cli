@@ -1,4 +1,4 @@
-# Contributing to paper-search-mcp
+# Contributing to paper-search-cli
 
 Thank you for contributing code, tests, documentation, bug reports, or design
 feedback. Open focused pull requests where possible and describe how the change

@@ -4,20 +4,10 @@ import tempfile
 import unittest
 from unittest.mock import AsyncMock, patch
 
-from paper_search_mcp import server
+from paper_search_mcp import operations as server
 
 
-class TestPaperSearchServer(unittest.TestCase):
-    def test_main_uses_local_stdio_transport(self):
-        with (
-            patch.object(server.mcp, "run") as run,
-            patch.object(server.threading, "Thread") as thread,
-        ):
-            server.main([])
-
-        run.assert_called_once_with(transport="stdio")
-        thread.return_value.start.assert_called_once_with()
-
+class TestPaperOperations(unittest.TestCase):
     def test_all_sources_include_new_platforms(self):
         self.assertIn("dblp", server.ALL_SOURCES)
         self.assertIn("openaire", server.ALL_SOURCES)
@@ -41,7 +31,7 @@ class TestPaperSearchServer(unittest.TestCase):
             "doi": "",
             "source": "arxiv",
         }
-        with patch.object(server, "search_arxiv", new=AsyncMock(return_value=[paper])):
+        with patch.object(server.TOOLS["search_arxiv"], "function", new=AsyncMock(return_value=[paper])):
             result = asyncio.run(
                 server.search_papers("test", sources="arxiv,not-a-source")
             )
@@ -54,9 +44,7 @@ class TestPaperSearchServer(unittest.TestCase):
         )
 
     def test_search_papers_surfaces_connector_exception(self):
-        with patch.object(
-            server,
-            "search_semantic",
+        with patch.object(server.TOOLS["search_semantic"], "function",
             new=AsyncMock(side_effect=RuntimeError("HTTP 429: Too many requests")),
         ):
             result = asyncio.run(server.search_papers("test", sources="semantic"))
@@ -78,6 +66,7 @@ class TestPaperSearchServer(unittest.TestCase):
             },
         )
 
+class TestLivePaperOperations(unittest.TestCase):
     def test_search_arxiv(self):
         """Test the search_arxiv tool returns 10 results."""
         result = asyncio.run(server.search_arxiv("machine learning", max_results=10))

@@ -1,6 +1,6 @@
 # Public OpenReview papers
 
-`openreview` is available in the normal CLI source registry and MCP unified
+`openreview` is available in the normal CLI source registry and CLI unified
 search. The direct tools are `search_openreview`, `download_openreview`, and
 `read_openreview_paper`.
 
@@ -48,5 +48,5 @@ Official references:
 
 Offline tests cover public-only filtering, malformed/error responses,
 pagination, ID/URL spoofing, identity mismatches, corrupt/HTML/wrong-title/large
-PDFs, atomic writes, and CLI/MCP routing. Live observations are listed in the
+PDFs, atomic writes, and CLI routing. Live observations are listed in the
 pull request separately; offline fixtures do not establish service availability.

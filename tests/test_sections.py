@@ -8,33 +8,15 @@ from unittest.mock import Mock
 
 import pytest
 from pypdf import PdfWriter
-from pypdf.generic import DictionaryObject, NameObject, DecodedStreamObject
+from pypdf.generic import NameObject, DecodedStreamObject
 
-from paper_search_mcp import sections, server, cli
+from paper_search_mcp import sections, cli
+from paper_search_mcp import operations as server
+from paper_search_mcp.tools import TOOLS
 from paper_search_mcp.sections import SectionExtractionError, extract_pdf_sections, split_sections
 
 
-def make_pdf(pages, *, encrypted=False):
-    writer = PdfWriter()
-    for lines in pages:
-        page = writer.add_blank_page(612, 792)
-        font = DictionaryObject({NameObject("/Type"): NameObject("/Font"),
-                                 NameObject("/Subtype"): NameObject("/Type1"),
-                                 NameObject("/BaseFont"): NameObject("/Helvetica")})
-        page[NameObject("/Resources")] = DictionaryObject({NameObject("/Font"): DictionaryObject({NameObject("/F1"): font})})
-        commands = ["BT /F1 12 Tf 50 700 Td 16 TL"]
-        for line in lines:
-            safe = line.replace("\\", "\\\\").replace("(", "\\(").replace(")", "\\)")
-            commands.append(f"({safe}) Tj T*")
-        commands.append("ET")
-        stream = DecodedStreamObject()
-        stream.set_data("\n".join(commands).encode("ascii"))
-        page[NameObject("/Contents")] = writer._add_object(stream)
-    if encrypted:
-        writer.encrypt("fixture")
-    result = io.BytesIO()
-    writer.write(result)
-    return result.getvalue()
+from tests.pdf_helpers import make_pdf
 
 
 @pytest.fixture
@@ -233,12 +215,9 @@ def test_timeout_after_extraction_does_not_claim_complete_success(root, monkeypa
         sections._parse_pdf_sections((root / "paper.pdf").read_bytes(), 30, 60000, 50, 1)
 
 
-def test_mcp_tool_registration_schema_and_real_call(root, monkeypatch):
+def test_tool_schema_and_real_call(root, monkeypatch):
     monkeypatch.setenv("PAPER_SEARCH_MCP_SECTION_PDF_ROOT", str(root))
-    registry = {tool.name: tool for tool in asyncio.run(server.mcp.list_tools())}
-    tool = registry["extract_sections"]
-    assert tool.annotations.readOnlyHint
-    assert "root" not in tool.inputSchema["properties"]
+    assert "root" not in TOOLS["extract_sections"].schema()["inputSchema"]["properties"]
     assert asyncio.run(server.extract_sections("paper.pdf"))["total_pages"] == 3
     with pytest.raises(SectionExtractionError):
         asyncio.run(server.extract_sections(str(root / "paper.pdf")))
@@ -332,11 +311,11 @@ def test_cut_at_actual_line_boundary_can_keep_a_real_heading(root):
 
 
 @pytest.mark.parametrize("value", [True, 1.0, "1"])
-def test_real_mcp_dispatch_requires_strict_integer_limits(value, monkeypatch):
+def test_argument_validation_requires_strict_integer_limits(value, monkeypatch):
     read = Mock()
     monkeypatch.setattr(sections, "_read_allowed_pdf", read)
     with pytest.raises(Exception, match="valid integer"):
-        asyncio.run(server.mcp.call_tool("extract_sections", {"pdf_path": "paper.pdf", "max_pages": value}))
+        TOOLS["extract_sections"].arguments.model_validate({"pdf_path": "paper.pdf", "max_pages": value})
     read.assert_not_called()
 
 

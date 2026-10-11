@@ -32,9 +32,11 @@ jobs:
       - name: Run deterministic tests
         run: >
           python -m pytest
+          tests/test_cli_contracts.py
           tests/test_package_entrypoints.py
           tests/test_cli_sort.py
           tests/test_cli_tools.py
+          tests/test_operations.py::TestPaperOperations
           tests/test_feature_integration.py
           tests/test_cli_sources.py
           tests/test_wos.py
@@ -47,9 +49,6 @@ jobs:
           tests/test_unpaywall.py
           tests/test_unpaywall_source.py
           tests/test_tool_schema_compat.py
-          tests/test_mcp_stdio.py
-          tests/test_server_transport.py
-          tests/test_http_auth.py
           tests/test_stabilization_regressions.py
           tests/test_search_timeouts.py
           tests/test_google_scholar_errors.py
@@ -64,7 +63,6 @@ jobs:
           tests/test_sections.py
           tests/test_search_cache.py
           tests/test_ieee.py
-          tests/test_dsh_bundle.py
           tests/test_skill_archive_docs.py
           tests/test_skill_zip_builder.py
           tests/test_acm.py
@@ -77,7 +75,7 @@ jobs:
 
       - name: Verify wheel entry points
         run: |
-          python -c "import pathlib, zipfile; wheel = next(pathlib.Path('dist').glob('paper_search_mcp-*.whl')); z = zipfile.ZipFile(wheel); entry = next(name for name in z.namelist() if name.endswith('.dist-info/entry_points.txt')); data = z.read(entry).decode(); assert 'paper-search-mcp = paper_search_mcp.server:main' in data; assert 'paper-search = paper_search_mcp.cli:main' in data; print(data)"
+          python -c "import pathlib, zipfile; wheel = next(pathlib.Path('dist').glob('paper_search_cli-*.whl')); z = zipfile.ZipFile(wheel); entry = next(name for name in z.namelist() if name.endswith('.dist-info/entry_points.txt')); data = z.read(entry).decode(); assert 'paper-search = paper_search_mcp.cli:main' in data; print(data)"
 
   publish:
     needs: test
@@ -102,7 +100,7 @@ jobs:
 
       - name: Verify wheel entry points
         run: |
-          python -c "import pathlib, zipfile; wheel = next(pathlib.Path('dist').glob('paper_search_mcp-*.whl')); z = zipfile.ZipFile(wheel); entry = next(name for name in z.namelist() if name.endswith('.dist-info/entry_points.txt')); data = z.read(entry).decode(); assert 'paper-search-mcp = paper_search_mcp.server:main' in data; assert 'paper-search = paper_search_mcp.cli:main' in data; print(data)"
+          python -c "import pathlib, zipfile; wheel = next(pathlib.Path('dist').glob('paper_search_cli-*.whl')); z = zipfile.ZipFile(wheel); entry = next(name for name in z.namelist() if name.endswith('.dist-info/entry_points.txt')); data = z.read(entry).decode(); assert 'paper-search = paper_search_mcp.cli:main' in data; print(data)"
 
       - name: Publish to PyPI
         uses: pypa/gh-action-pypi-publish@release/v1

@@ -195,7 +195,7 @@ def test_pdf_size_bound(tmp_path, monkeypatch):
 
 
 def test_registration_and_unified_error(monkeypatch):
-    from paper_search_mcp import cli, server
+    from paper_search_mcp import cli, operations as server
     assert "openreview" in cli.ALL_SOURCES
     assert isinstance(cli._get_searcher("openreview"), OpenReviewSearcher)
     assert "openreview" in server.ALL_SOURCES

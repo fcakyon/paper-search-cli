@@ -4,7 +4,7 @@ The existing opt-in IEEE connector now implements the official Metadata Search
 API. It uses an already configured `PAPER_SEARCH_MCP_IEEE_API_KEY` (or legacy
 `IEEE_API_KEY`); no credentials are created or saved and no plan is purchased.
 Without a key its operations retain the explicit configuration error and the
-normal CLI/MCP IEEE tools remain unavailable.
+normal CLI IEEE tools remain unavailable.
 
 Search supports 0..1000 requested results, pages of at most 200, a 20-page scan
 bound and stable-article-number deduplication. Metadata includes authors,

@@ -6,6 +6,7 @@ from __future__ import annotations
 import argparse
 import asyncio
 import json
+from importlib import import_module
 import math
 import os
 import re
@@ -17,32 +18,39 @@ from typing import Any, Dict, List
 
 from .config import get_env
 from .tool_cli import cmd_tool
-from .academic_platforms.arxiv import ArxivSearcher
-from .academic_platforms.pubmed import PubMedSearcher
-from .academic_platforms.biorxiv import BioRxivSearcher
-from .academic_platforms.medrxiv import MedRxivSearcher
-from .academic_platforms.google_scholar import GoogleScholarSearcher
-from .academic_platforms.iacr import IACRSearcher
-from .academic_platforms.semantic import SemanticSearcher
-from .academic_platforms.crossref import CrossRefSearcher
-from .academic_platforms.openalex import OpenAlexSearcher
-from .academic_platforms.pmc import PMCSearcher
-from .academic_platforms.core import CORESearcher
-from .academic_platforms.europepmc import EuropePMCSearcher
-from .academic_platforms.dblp import DBLPSearcher
-from .academic_platforms.openaire import OpenAiresearcher
-from .academic_platforms.citeseerx import CiteSeerXSearcher
-from .academic_platforms.doaj import DOAJSearcher
-from .academic_platforms.base_search import BASESearcher
-from .academic_platforms.unpaywall import UnpaywallResolver, UnpaywallSearcher
-from .academic_platforms.zenodo import ZenodoSearcher
-from .academic_platforms.hal import HALSearcher
-from .academic_platforms.ssrn import SSRNSearcher
-from .academic_platforms.openreview import OpenReviewSearcher
-
+from .utils import dedupe_papers
 # ---------------------------------------------------------------------------
 # Searcher registry
 # ---------------------------------------------------------------------------
+
+SOURCE_CLASSES = {
+    "arxiv": ("arxiv", "ArxivSearcher"),
+    "pubmed": ("pubmed", "PubMedSearcher"),
+    "biorxiv": ("biorxiv", "BioRxivSearcher"),
+    "medrxiv": ("medrxiv", "MedRxivSearcher"),
+    "google_scholar": ("google_scholar", "GoogleScholarSearcher"),
+    "iacr": ("iacr", "IACRSearcher"),
+    "semantic": ("semantic", "SemanticSearcher"),
+    "crossref": ("crossref", "CrossRefSearcher"),
+    "openalex": ("openalex", "OpenAlexSearcher"),
+    "pmc": ("pmc", "PMCSearcher"),
+    "core": ("core", "CORESearcher"),
+    "europepmc": ("europepmc", "EuropePMCSearcher"),
+    "dblp": ("dblp", "DBLPSearcher"),
+    "openaire": ("openaire", "OpenAiresearcher"),
+    "citeseerx": ("citeseerx", "CiteSeerXSearcher"),
+    "doaj": ("doaj", "DOAJSearcher"),
+    "base": ("base_search", "BASESearcher"),
+    "zenodo": ("zenodo", "ZenodoSearcher"),
+    "hal": ("hal", "HALSearcher"),
+    "ssrn": ("ssrn", "SSRNSearcher"),
+    "openreview": ("openreview", "OpenReviewSearcher"),
+    "unpaywall": ("unpaywall", "UnpaywallSearcher"),
+    "ieee": ("ieee", "IEEESearcher"),
+    "scopus": ("scopus", "ScopusSearcher"),
+    "wos": ("wos", "WebOfScienceSearcher"),
+    "acm": ("acm", "ACMSearcher"),
+}
 
 SEARCHERS: Dict[str, Any] = {}
 
@@ -62,51 +70,9 @@ def _get_searcher(source: str) -> Any:
     if source in SEARCHERS:
         return SEARCHERS[source]
 
-    factories = {
-        "arxiv": ArxivSearcher,
-        "pubmed": PubMedSearcher,
-        "biorxiv": BioRxivSearcher,
-        "medrxiv": MedRxivSearcher,
-        "google_scholar": GoogleScholarSearcher,
-        "iacr": IACRSearcher,
-        "semantic": SemanticSearcher,
-        "crossref": CrossRefSearcher,
-        "openalex": OpenAlexSearcher,
-        "pmc": PMCSearcher,
-        "core": CORESearcher,
-        "europepmc": EuropePMCSearcher,
-        "dblp": DBLPSearcher,
-        "openaire": OpenAiresearcher,
-        "citeseerx": CiteSeerXSearcher,
-        "doaj": DOAJSearcher,
-        "base": BASESearcher,
-        "zenodo": ZenodoSearcher,
-        "hal": HALSearcher,
-        "ssrn": SSRNSearcher,
-        "openreview": OpenReviewSearcher,
-    }
-
-    if source == "unpaywall":
-        searcher = UnpaywallSearcher(resolver=UnpaywallResolver())
-    elif source == "ieee" and get_env("IEEE_API_KEY", ""):
-        from .academic_platforms.ieee import IEEESearcher
-        searcher = IEEESearcher()
-    elif source == "scopus":
-        from .academic_platforms.scopus import ScopusSearcher
-        searcher = ScopusSearcher()
-    elif source == "wos":
-        from .academic_platforms.wos import WebOfScienceSearcher
-        searcher = WebOfScienceSearcher()
-    elif source == "acm":
-        from .academic_platforms.acm import ACMSearcher
-        searcher = ACMSearcher()
-    elif source in factories:
-        searcher = factories[source]()
-    else:
-        raise KeyError(source)
-
-    SEARCHERS[source] = searcher
-    return searcher
+    module, name = SOURCE_CLASSES[source]
+    SEARCHERS[source] = getattr(import_module(f".academic_platforms.{module}", __package__), name)()
+    return SEARCHERS[source]
 
 
 ALL_SOURCES = [
@@ -146,28 +112,6 @@ def _parse_sources(sources: str) -> List[str]:
     available = set(_available_sources())
     # Avoid replacing an unawaited coroutine when the same source is repeated.
     return list(dict.fromkeys(source for source in source_names if source in available))
-
-
-def _paper_unique_key(paper: Dict[str, Any]) -> str:
-    doi = (paper.get("doi") or "").strip().lower()
-    if doi:
-        return f"doi:{doi}"
-    title = (paper.get("title") or "").strip().lower()
-    authors = (paper.get("authors") or "").strip().lower()
-    if title:
-        return f"title:{title}|authors:{authors}"
-    return f"id:{(paper.get('paper_id') or '').strip().lower()}"
-
-
-def _dedupe(papers: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
-    seen: set[str] = set()
-    out: list[Dict[str, Any]] = []
-    for p in papers:
-        k = _paper_unique_key(p)
-        if k not in seen:
-            seen.add(k)
-            out.append(p)
-    return out
 
 
 def _citation_sort_key(paper: Dict[str, Any]) -> tuple[bool, Decimal]:
@@ -274,7 +218,7 @@ async def cmd_search(args: argparse.Namespace) -> int:
                     p["source"] = name
                 merged.append(p)
 
-    deduped = _sort_papers(_dedupe(merged), getattr(args, "sort", "relevance"))
+    deduped = _sort_papers(dedupe_papers(merged), getattr(args, "sort", "relevance"))
 
     output = {
         "query": args.query,
@@ -426,9 +370,8 @@ def build_parser() -> argparse.ArgumentParser:
     # sources
     sub.add_parser("sources", help="List available sources")
 
-    # Parse only the outer command here; the async handler discovers the MCP
-    # tools and parses their arguments, including help, without nested loops.
-    p_tool = sub.add_parser("tool", help="Call any registered MCP tool", add_help=False)
+    # Load operation schemas only when a tool command is requested.
+    p_tool = sub.add_parser("tool", help="Call any paper operation", add_help=False)
     p_tool.add_argument("-h", "--help", dest="tool_help", action="store_true")
     p_tool.add_argument("--list", dest="list_tools", action="store_true")
     p_tool.add_argument("tool_args", nargs=argparse.REMAINDER)

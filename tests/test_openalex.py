@@ -3,7 +3,7 @@ import os
 import unittest
 from unittest.mock import AsyncMock, Mock, patch
 
-from paper_search_mcp import server
+from paper_search_mcp import operations as server
 from paper_search_mcp.academic_platforms.openalex import OpenAlexSearcher
 
 

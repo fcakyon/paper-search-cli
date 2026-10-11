@@ -1,5 +1,4 @@
-# paper_search_mcp/server.py
-import argparse
+"""Paper operations exposed by the command line."""
 import asyncio
 import io
 import logging
@@ -7,7 +6,6 @@ import os
 import re
 import tempfile
 import threading
-import time
 import unicodedata
 from collections.abc import Awaitable
 from concurrent.futures import Future, ThreadPoolExecutor
@@ -16,8 +14,9 @@ from typing import Annotated, Any, Dict, List, Optional
 from pydantic import Field
 from urllib.parse import unquote
 
-import httpx
-from mcp.server.fastmcp import FastMCP
+import requests
+from .tools import TOOLS, tool
+from .utils import dedupe_papers
 
 from .academic_platforms.arxiv import ArxivSearcher
 from .academic_platforms.base_search import BASESearcher
@@ -42,11 +41,9 @@ from .academic_platforms.ssrn import SSRNSearcher
 from .academic_platforms.openreview import OpenReviewSearcher
 from .academic_platforms.unpaywall import UnpaywallResolver, UnpaywallSearcher
 from .academic_platforms.zenodo import ZenodoSearcher
-from .config import get_env, load_env_file
+from .config import get_env
 from .search_cache import SearchCache, search_key
 
-# Initialize MCP server
-mcp = FastMCP("paper_search_server")
 logger = logging.getLogger(__name__)
 GOOGLE_SCHOLAR_TOOL_TIMEOUT_SECONDS = 20.0
 SEARCH_PAPERS_SOURCE_TIMEOUT_SECONDS = 45.0
@@ -148,7 +145,7 @@ async def async_search(searcher, query: str, max_results: int, **kwargs) -> List
     return result
 
 
-@mcp.tool(annotations={"readOnlyHint": True, "openWorldHint": True})
+@tool
 async def get_search_cache_status() -> Dict:
     """Show opt-in local search cache settings and entry count, never query contents.
 
@@ -158,7 +155,7 @@ async def get_search_cache_status() -> Dict:
     return await asyncio.wrap_future(_SEARCH_EXECUTOR.submit(_SEARCH_CACHE.status))
 
 
-@mcp.tool(annotations={"readOnlyHint": False, "destructiveHint": True, "openWorldHint": True})
+@tool
 async def clear_search_cache() -> Dict:
     """Delete all cached search results at the configured local cache path.
 
@@ -256,34 +253,6 @@ def _invalid_sources(sources: str) -> List[str]:
     return list(dict.fromkeys(source for source in normalized if source not in ALL_SOURCES + EXPLICIT_ONLY_SOURCES))
 
 
-def _paper_unique_key(paper: Dict[str, Any]) -> str:
-    doi = (paper.get("doi") or "").strip().lower()
-    if doi:
-        return f"doi:{doi}"
-
-    title = (paper.get("title") or "").strip().lower()
-    authors = (paper.get("authors") or "").strip().lower()
-    if title:
-        return f"title:{title}|authors:{authors}"
-
-    paper_id = (paper.get("paper_id") or "").strip().lower()
-    return f"id:{paper_id}"
-
-
-def _dedupe_papers(papers: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
-    deduped: List[Dict[str, Any]] = []
-    seen: set[str] = set()
-
-    for paper in papers:
-        key = _paper_unique_key(paper)
-        if key in seen:
-            continue
-        seen.add(key)
-        deduped.append(paper)
-
-    return deduped
-
-
 def _safe_filename(filename_hint: str, default: str = "paper") -> str:
     safe = re.sub(r"[^a-zA-Z0-9._-]+", "_", filename_hint).strip("._")
     if not safe:
@@ -307,8 +276,7 @@ async def _download_from_url(
     temporary_path = ""
 
     try:
-        async with httpx.AsyncClient(follow_redirects=True, timeout=30) as client:
-            response = await client.get(pdf_url)
+        response = await asyncio.to_thread(requests.get, pdf_url, timeout=30)
 
         if response.status_code >= 400 or not response.content:
             return None
@@ -574,7 +542,7 @@ async def _try_repository_fallback(
     return None, "; ".join(repository_errors)
 
 
-@mcp.tool(annotations={"readOnlyHint": True, "openWorldHint": True})
+@tool
 async def search_papers(
     query: str,
     max_results_per_source: int = 5,
@@ -612,60 +580,10 @@ async def search_papers(
 
     task_map = {}
     for source in selected_sources:
-        if source == "arxiv":
-            task_map[source] = search_arxiv(query, max_results_per_source)
-        elif source == "pubmed":
-            task_map[source] = search_pubmed(query, max_results_per_source)
-        elif source == "biorxiv":
-            task_map[source] = search_biorxiv(query, max_results_per_source)
-        elif source == "medrxiv":
-            task_map[source] = search_medrxiv(query, max_results_per_source)
-        elif source == "google_scholar":
-            task_map[source] = search_google_scholar(query, max_results_per_source)
-        elif source == "iacr":
-            task_map[source] = search_iacr(query, max_results_per_source, fetch_details=False)
-        elif source == "semantic":
-            task_map[source] = search_semantic(query, year=year, max_results=max_results_per_source)
-        elif source == "crossref":
-            task_map[source] = search_crossref(query, max_results=max_results_per_source)
-        elif source == "openalex":
-            task_map[source] = search_openalex(query, max_results_per_source)
-        elif source == "pmc":
-            task_map[source] = search_pmc(query, max_results_per_source)
-        elif source == "core":
-            task_map[source] = search_core(query, max_results_per_source)
-        elif source == "europepmc":
-            task_map[source] = search_europepmc(query, max_results_per_source)
-        elif source == "dblp":
-            task_map[source] = search_dblp(query, max_results_per_source)
-        elif source == "openaire":
-            task_map[source] = search_openaire(query, max_results_per_source)
-        elif source == "citeseerx":
-            task_map[source] = search_citeseerx(query, max_results_per_source)
-        elif source == "doaj":
-            task_map[source] = search_doaj(query, max_results_per_source)
-        elif source == "base":
-            task_map[source] = search_base(query, max_results_per_source)
-        elif source == "zenodo":
-            task_map[source] = search_zenodo(query, max_results_per_source)
-        elif source == "hal":
-            task_map[source] = search_hal(query, max_results_per_source)
-        elif source == "openreview":
-            task_map[source] = search_openreview(query, max_results_per_source)
-        elif source == "ssrn":
-            task_map[source] = search_ssrn(query, max_results_per_source)
-        elif source == "unpaywall":
-            task_map[source] = search_unpaywall(query, max_results_per_source)
-        elif source == "ieee":
-            if ieee_searcher is not None:
-                task_map[source] = async_search(ieee_searcher, query, max_results_per_source)
-        elif source == "scopus":
-            task_map[source] = search_scopus(query, max_results_per_source)
-        elif source == "wos":
-            task_map[source] = search_wos(query, max_results_per_source)
-        elif source == "acm":
-            if acm_searcher is not None:
-                task_map[source] = async_search(acm_searcher, query, max_results_per_source)
+        options = {"fetch_details": False} if source == "iacr" else {"year": year} if source == "semantic" else {}
+        task_map[source] = TOOLS[f"search_{source}"].function(
+            query, max_results=max_results_per_source, **options,
+        )
 
     source_names = list(task_map.keys())
     source_outputs = await asyncio.gather(
@@ -691,7 +609,7 @@ async def search_papers(
                 paper["source"] = source_name
             merged_papers.append(paper)
 
-    deduped_papers = _dedupe_papers(merged_papers)
+    deduped_papers = dedupe_papers(merged_papers)
 
     return {
         "query": query,
@@ -705,7 +623,7 @@ async def search_papers(
     }
 
 
-@mcp.tool(annotations={"readOnlyHint": True, "openWorldHint": True})
+@tool
 async def search_wos(query: str, max_results: int = 10, db: str = "WOS") -> List[Dict]:
     """Explicit Web of Science Starter metadata search; never part of 'all'.
 
@@ -717,7 +635,7 @@ async def search_wos(query: str, max_results: int = 10, db: str = "WOS") -> List
     return await async_search(WebOfScienceSearcher(), query, max_results, db=db)
 
 
-@mcp.tool(annotations={"readOnlyHint": True, "openWorldHint": True})
+@tool
 async def search_scopus(query: str, max_results: int = 10, view: str = "STANDARD",
                         sort: str = "relevance", field: str = "", date: str = "") -> List[Dict]:
     """Explicit Scopus metadata search, never part of 'all'.
@@ -732,7 +650,7 @@ async def search_scopus(query: str, max_results: int = 10, view: str = "STANDARD
                               view=view, sort=sort, field=field, date=date)
 
 
-@mcp.tool(annotations={"readOnlyHint": True, "openWorldHint": True})
+@tool
 async def read_scopus_paper(paper_id: str, full_text: bool = False) -> Dict[str, Any]:
     """Retrieve Scopus abstract metadata, with explicit ScienceDirect opt-in.
 
@@ -745,7 +663,7 @@ async def read_scopus_paper(paper_id: str, full_text: bool = False) -> Dict[str,
 
 
 # Tool definitions
-@mcp.tool(annotations={"readOnlyHint": True, "openWorldHint": True})
+@tool
 async def search_arxiv(query: str, max_results: int = 10, sort_by: str = 'relevance', sort_order: str = 'descending') -> List[Dict]:
     """Search academic papers from arXiv.
 
@@ -761,7 +679,7 @@ async def search_arxiv(query: str, max_results: int = 10, sort_by: str = 'releva
     return papers if papers else []
 
 
-@mcp.tool(annotations={"readOnlyHint": True, "openWorldHint": True})
+@tool
 async def search_pubmed(query: str, max_results: int = 10, sort: str = 'relevance') -> List[Dict]:
     """Search academic papers from PubMed.
 
@@ -776,7 +694,7 @@ async def search_pubmed(query: str, max_results: int = 10, sort: str = 'relevanc
     return papers if papers else []
 
 
-@mcp.tool(annotations={"readOnlyHint": True, "openWorldHint": True})
+@tool
 async def search_biorxiv(query: str, max_results: int = 10) -> List[Dict]:
     """Search academic papers from bioRxiv.
 
@@ -794,7 +712,7 @@ async def search_biorxiv(query: str, max_results: int = 10) -> List[Dict]:
     return papers if papers else []
 
 
-@mcp.tool(annotations={"readOnlyHint": True, "openWorldHint": True})
+@tool
 async def search_medrxiv(query: str, max_results: int = 10) -> List[Dict]:
     """Search academic papers from medRxiv.
 
@@ -812,7 +730,7 @@ async def search_medrxiv(query: str, max_results: int = 10) -> List[Dict]:
     return papers if papers else []
 
 
-@mcp.tool(annotations={"readOnlyHint": True, "openWorldHint": True})
+@tool
 async def search_google_scholar(query: str, max_results: int = 10) -> List[Dict]:
     """Search academic papers from Google Scholar.
 
@@ -841,7 +759,7 @@ async def search_google_scholar(query: str, max_results: int = 10) -> List[Dict]
     return papers if papers else []
 
 
-@mcp.tool(annotations={"readOnlyHint": True, "openWorldHint": True})
+@tool
 async def search_iacr(
     query: str, max_results: int = 10, fetch_details: bool = True
 ) -> List[Dict]:
@@ -858,7 +776,7 @@ async def search_iacr(
     return [paper.to_dict() for paper in papers] if papers else []
 
 
-@mcp.tool(annotations={"readOnlyHint": False, "destructiveHint": True, "openWorldHint": True})
+@tool
 async def download_arxiv(paper_id: str, save_path: str = "./downloads") -> str:
     """Download PDF of an arXiv paper.
 
@@ -871,7 +789,7 @@ async def download_arxiv(paper_id: str, save_path: str = "./downloads") -> str:
     return await asyncio.to_thread(arxiv_searcher.download_pdf, paper_id, save_path)
 
 
-@mcp.tool(annotations={"readOnlyHint": False, "destructiveHint": True, "openWorldHint": True})
+@tool
 async def download_pubmed(paper_id: str, save_path: str = "./downloads") -> str:
     """Attempt to download PDF of a PubMed paper.
 
@@ -887,7 +805,7 @@ async def download_pubmed(paper_id: str, save_path: str = "./downloads") -> str:
         return str(e)
 
 
-@mcp.tool(annotations={"readOnlyHint": False, "destructiveHint": True, "openWorldHint": True})
+@tool
 async def download_biorxiv(paper_id: str, save_path: str = "./downloads") -> str:
     """Download PDF of a bioRxiv paper.
 
@@ -900,7 +818,7 @@ async def download_biorxiv(paper_id: str, save_path: str = "./downloads") -> str
     return biorxiv_searcher.download_pdf(paper_id, save_path)
 
 
-@mcp.tool(annotations={"readOnlyHint": False, "destructiveHint": True, "openWorldHint": True})
+@tool
 async def download_medrxiv(paper_id: str, save_path: str = "./downloads") -> str:
     """Download PDF of a medRxiv paper.
 
@@ -913,7 +831,7 @@ async def download_medrxiv(paper_id: str, save_path: str = "./downloads") -> str
     return medrxiv_searcher.download_pdf(paper_id, save_path)
 
 
-@mcp.tool(annotations={"readOnlyHint": False, "destructiveHint": True, "openWorldHint": True})
+@tool
 async def download_iacr(paper_id: str, save_path: str = "./downloads") -> str:
     """Download PDF of an IACR ePrint paper.
 
@@ -926,7 +844,7 @@ async def download_iacr(paper_id: str, save_path: str = "./downloads") -> str:
     return iacr_searcher.download_pdf(paper_id, save_path)
 
 
-@mcp.tool(annotations={"readOnlyHint": False, "destructiveHint": True, "openWorldHint": True})
+@tool
 async def read_arxiv_paper(paper_id: str, save_path: str = "./downloads") -> str:
     """Read and extract text content from an arXiv paper PDF.
 
@@ -943,7 +861,7 @@ async def read_arxiv_paper(paper_id: str, save_path: str = "./downloads") -> str
         return ""
 
 
-@mcp.tool(annotations={"readOnlyHint": True, "openWorldHint": True})
+@tool
 async def read_pubmed_paper(paper_id: str, save_path: str = "./downloads") -> str:
     """Read and extract text content from a PubMed paper.
 
@@ -956,7 +874,7 @@ async def read_pubmed_paper(paper_id: str, save_path: str = "./downloads") -> st
     return pubmed_searcher.read_paper(paper_id, save_path)
 
 
-@mcp.tool(annotations={"readOnlyHint": False, "destructiveHint": True, "openWorldHint": True})
+@tool
 async def read_biorxiv_paper(paper_id: str, save_path: str = "./downloads") -> str:
     """Read and extract text content from a bioRxiv paper PDF.
 
@@ -973,7 +891,7 @@ async def read_biorxiv_paper(paper_id: str, save_path: str = "./downloads") -> s
         return ""
 
 
-@mcp.tool(annotations={"readOnlyHint": False, "destructiveHint": True, "openWorldHint": True})
+@tool
 async def read_medrxiv_paper(paper_id: str, save_path: str = "./downloads") -> str:
     """Read and extract text content from a medRxiv paper PDF.
 
@@ -990,7 +908,7 @@ async def read_medrxiv_paper(paper_id: str, save_path: str = "./downloads") -> s
         return ""
 
 
-@mcp.tool(annotations={"readOnlyHint": False, "destructiveHint": True, "openWorldHint": True})
+@tool
 async def read_iacr_paper(paper_id: str, save_path: str = "./downloads") -> str:
     """Read and extract text content from an IACR ePrint paper PDF.
 
@@ -1007,7 +925,7 @@ async def read_iacr_paper(paper_id: str, save_path: str = "./downloads") -> str:
         return ""
 
 
-@mcp.tool(annotations={"readOnlyHint": True, "openWorldHint": True})
+@tool
 async def search_semantic(query: str, year: str = "", max_results: int = 10) -> List[Dict]:
     """Search academic papers from Semantic Scholar.
 
@@ -1025,7 +943,7 @@ async def search_semantic(query: str, year: str = "", max_results: int = 10) -> 
     return papers if papers else []
 
 
-@mcp.tool(annotations={"readOnlyHint": False, "destructiveHint": True, "openWorldHint": True})
+@tool
 async def download_semantic(paper_id: str, save_path: str = "./downloads") -> str:
     """Download PDF of a Semantic Scholar paper.    
 
@@ -1046,7 +964,7 @@ async def download_semantic(paper_id: str, save_path: str = "./downloads") -> st
     return semantic_searcher.download_pdf(paper_id, save_path)
 
 
-@mcp.tool(annotations={"readOnlyHint": False, "destructiveHint": True, "openWorldHint": True})
+@tool
 async def read_semantic_paper(paper_id: str, save_path: str = "./downloads") -> str:
     """Read and extract text content from a Semantic Scholar paper. 
 
@@ -1071,7 +989,7 @@ async def read_semantic_paper(paper_id: str, save_path: str = "./downloads") -> 
         return ""
 
 
-@mcp.tool(annotations={"readOnlyHint": True, "openWorldHint": True})
+@tool
 async def search_crossref(
     query: str,
     max_results: int = 10,
@@ -1104,7 +1022,7 @@ async def search_crossref(
     return papers if papers else []
 
 
-@mcp.tool(annotations={"readOnlyHint": True, "openWorldHint": True})
+@tool
 async def get_crossref_paper_by_doi(doi: str) -> Dict:
     """Get a specific paper from CrossRef by its DOI.
 
@@ -1120,7 +1038,7 @@ async def get_crossref_paper_by_doi(doi: str) -> Dict:
     return paper.to_dict() if paper else {}
 
 
-@mcp.tool(annotations={"readOnlyHint": False, "destructiveHint": True, "openWorldHint": True})
+@tool
 async def download_crossref(paper_id: str, save_path: str = "./downloads") -> str:
     """Attempt to download PDF of a CrossRef paper.
 
@@ -1140,7 +1058,7 @@ async def download_crossref(paper_id: str, save_path: str = "./downloads") -> st
         return str(e)
 
 
-@mcp.tool(annotations={"readOnlyHint": False, "destructiveHint": True, "openWorldHint": True})
+@tool
 async def download_scihub(
     identifier: str,
     save_path: str = "./downloads",
@@ -1162,7 +1080,7 @@ async def download_scihub(
     return "Sci-Hub download failed. Try DOI first, then title, or change mirror URL."
 
 
-@mcp.tool(annotations={"readOnlyHint": False, "destructiveHint": True, "openWorldHint": True})
+@tool
 async def download_with_fallback(
     source: str,
     paper_id: str,
@@ -1280,7 +1198,7 @@ async def download_with_fallback(
     return "Download failed after OA fallback chain and Sci-Hub fallback. Details: " + " | ".join(attempt_errors)
 
 
-@mcp.tool(annotations={"readOnlyHint": True, "openWorldHint": True})
+@tool
 async def read_crossref_paper(paper_id: str, save_path: str = "./downloads") -> str:
     """Attempt to read and extract text content from a CrossRef paper.
 
@@ -1297,7 +1215,7 @@ async def read_crossref_paper(paper_id: str, save_path: str = "./downloads") -> 
     return crossref_searcher.read_paper(paper_id, save_path)
 
 
-@mcp.tool(annotations={"readOnlyHint": True, "openWorldHint": True})
+@tool
 async def search_openalex(
     query: str,
     max_results: int = 10,
@@ -1339,7 +1257,7 @@ async def _openalex_relationship(method, identifier, max_results, filter,
         raise TimeoutError("OpenAlex relationship lookup exceeded its time budget") from exc
 
 
-@mcp.tool(annotations={"readOnlyHint": True, "openWorldHint": True})
+@tool
 async def extract_sections(
     pdf_path: str,
     max_pages: Annotated[int, Field(strict=True, ge=1, le=100)] = 30,
@@ -1377,7 +1295,7 @@ async def extract_sections(
         cancellation.set()
 
 
-@mcp.tool(annotations={"readOnlyHint": True, "openWorldHint": True})
+@tool
 async def get_citing_papers(identifier: str, max_results: int = 10, filter: str = "",
                             max_pages: int = 5, max_requests: int = 8,
                             timeout_seconds: float = 30.0) -> Dict:
@@ -1394,7 +1312,7 @@ async def get_citing_papers(identifier: str, max_results: int = 10, filter: str 
     )
 
 
-@mcp.tool(annotations={"readOnlyHint": True, "openWorldHint": True})
+@tool
 async def get_referenced_papers(identifier: str, max_results: int = 10, filter: str = "",
                                 max_pages: int = 5, max_requests: int = 8,
                                 timeout_seconds: float = 30.0) -> Dict:
@@ -1410,7 +1328,7 @@ async def get_referenced_papers(identifier: str, max_results: int = 10, filter: 
     )
 
 
-@mcp.tool(annotations={"readOnlyHint": True, "openWorldHint": True})
+@tool
 async def search_pmc(query: str, max_results: int = 10) -> List[Dict]:
     """Search academic papers from PubMed Central (PMC).
 
@@ -1424,7 +1342,7 @@ async def search_pmc(query: str, max_results: int = 10) -> List[Dict]:
     return papers if papers else []
 
 
-@mcp.tool(annotations={"readOnlyHint": True, "openWorldHint": True})
+@tool
 async def search_core(query: str, max_results: int = 10) -> List[Dict]:
     """Search academic papers from CORE.
 
@@ -1438,7 +1356,7 @@ async def search_core(query: str, max_results: int = 10) -> List[Dict]:
     return papers if papers else []
 
 
-@mcp.tool(annotations={"readOnlyHint": True, "openWorldHint": True})
+@tool
 async def search_europepmc(query: str, max_results: int = 10) -> List[Dict]:
     """Search academic papers from Europe PMC.
 
@@ -1452,7 +1370,7 @@ async def search_europepmc(query: str, max_results: int = 10) -> List[Dict]:
     return papers if papers else []
 
 
-@mcp.tool(annotations={"readOnlyHint": True, "openWorldHint": True})
+@tool
 async def search_dblp(query: str, max_results: int = 10) -> List[Dict]:
     """Search academic papers from dblp computer science bibliography.
 
@@ -1466,7 +1384,7 @@ async def search_dblp(query: str, max_results: int = 10) -> List[Dict]:
     return papers if papers else []
 
 
-@mcp.tool(annotations={"readOnlyHint": True, "openWorldHint": True})
+@tool
 async def search_openaire(query: str, max_results: int = 10) -> List[Dict]:
     """Search academic papers from OpenAIRE European Open Access infrastructure.
 
@@ -1480,7 +1398,7 @@ async def search_openaire(query: str, max_results: int = 10) -> List[Dict]:
     return papers if papers else []
 
 
-@mcp.tool(annotations={"readOnlyHint": True, "openWorldHint": True})
+@tool
 async def search_citeseerx(query: str, max_results: int = 10) -> List[Dict]:
     """Search academic papers from CiteSeerX digital library.
 
@@ -1494,7 +1412,7 @@ async def search_citeseerx(query: str, max_results: int = 10) -> List[Dict]:
     return papers if papers else []
 
 
-@mcp.tool(annotations={"readOnlyHint": True, "openWorldHint": True})
+@tool
 async def search_doaj(query: str, max_results: int = 10) -> List[Dict]:
     """Search academic papers from DOAJ (Directory of Open Access Journals).
 
@@ -1508,7 +1426,7 @@ async def search_doaj(query: str, max_results: int = 10) -> List[Dict]:
     return papers if papers else []
 
 
-@mcp.tool(annotations={"readOnlyHint": True, "openWorldHint": True})
+@tool
 async def search_base(query: str, max_results: int = 10) -> List[Dict]:
     """Search academic papers from BASE (Bielefeld Academic Search Engine).
 
@@ -1522,7 +1440,7 @@ async def search_base(query: str, max_results: int = 10) -> List[Dict]:
     return papers if papers else []
 
 
-@mcp.tool(annotations={"readOnlyHint": True, "openWorldHint": True})
+@tool
 async def search_zenodo(query: str, max_results: int = 10) -> List[Dict]:
     """Search academic papers from Zenodo open repository.
 
@@ -1536,7 +1454,7 @@ async def search_zenodo(query: str, max_results: int = 10) -> List[Dict]:
     return papers if papers else []
 
 
-@mcp.tool(annotations={"readOnlyHint": True, "openWorldHint": True})
+@tool
 async def search_hal(query: str, max_results: int = 10) -> List[Dict]:
     """Search academic papers from HAL open archive.
 
@@ -1550,7 +1468,7 @@ async def search_hal(query: str, max_results: int = 10) -> List[Dict]:
     return papers if papers else []
 
 
-@mcp.tool(annotations={"readOnlyHint": True, "openWorldHint": True})
+@tool
 async def search_openreview(query: str, max_results: int = 10) -> List[Dict]:
     """Search public OpenReview API v2 papers anonymously (0..1000 results).
 
@@ -1560,7 +1478,7 @@ async def search_openreview(query: str, max_results: int = 10) -> List[Dict]:
     return await async_search(openreview_searcher, query, max_results)
 
 
-@mcp.tool(annotations={"readOnlyHint": False, "destructiveHint": True, "openWorldHint": True})
+@tool
 async def download_openreview(paper_id: str, save_path: str = "./downloads") -> str:
     """Download a public OpenReview PDF by note ID or official forum URL.
 
@@ -1570,13 +1488,13 @@ async def download_openreview(paper_id: str, save_path: str = "./downloads") -> 
     return await asyncio.to_thread(openreview_searcher.download_pdf, paper_id, save_path)
 
 
-@mcp.tool(annotations={"readOnlyHint": False, "destructiveHint": True, "openWorldHint": True})
+@tool
 async def read_openreview_paper(paper_id: str, save_path: str = "./downloads") -> str:
     """Download, validate and read an anonymously accessible OpenReview PDF."""
     return await asyncio.to_thread(openreview_searcher.read_paper, paper_id, save_path)
 
 
-@mcp.tool(annotations={"readOnlyHint": True, "openWorldHint": True})
+@tool
 async def search_ssrn(query: str, max_results: int = 10) -> List[Dict]:
     """Search SSRN-indexed metadata through OpenAlex.
 
@@ -1593,7 +1511,7 @@ async def search_ssrn(query: str, max_results: int = 10) -> List[Dict]:
     return papers if papers else []
 
 
-@mcp.tool(annotations={"readOnlyHint": True, "openWorldHint": True})
+@tool
 async def search_unpaywall(query: str, max_results: int = 10) -> List[Dict]:
     """Lookup a DOI via Unpaywall and return OA metadata.
 
@@ -1610,7 +1528,7 @@ async def search_unpaywall(query: str, max_results: int = 10) -> List[Dict]:
     return papers if papers else []
 
 
-@mcp.tool(annotations={"readOnlyHint": True, "openWorldHint": True})
+@tool
 async def read_dblp_paper(paper_id: str, save_path: str = "./downloads") -> str:
     """Attempt to read and extract text content from a dblp paper.
 
@@ -1626,7 +1544,7 @@ async def read_dblp_paper(paper_id: str, save_path: str = "./downloads") -> str:
     return dblp_searcher.read_paper(paper_id, save_path)
 
 
-@mcp.tool(annotations={"readOnlyHint": False, "destructiveHint": True, "openWorldHint": True})
+@tool
 async def download_dblp(paper_id: str, save_path: str = "./downloads") -> str:
     """Download PDF for a paper from dblp.
 
@@ -1642,7 +1560,7 @@ async def download_dblp(paper_id: str, save_path: str = "./downloads") -> str:
     return dblp_searcher.download_pdf(paper_id, save_path)
 
 
-@mcp.tool(annotations={"readOnlyHint": True, "openWorldHint": True})
+@tool
 async def read_openaire_paper(paper_id: str, save_path: str = "./downloads") -> str:
     """Attempt to read and extract text content from an OpenAIRE paper.
 
@@ -1655,7 +1573,7 @@ async def read_openaire_paper(paper_id: str, save_path: str = "./downloads") -> 
     return openaire_searcher.read_paper(paper_id, save_path)
 
 
-@mcp.tool(annotations={"readOnlyHint": False, "destructiveHint": True, "openWorldHint": True})
+@tool
 async def download_openaire(paper_id: str, save_path: str = "./downloads") -> str:
     """Download PDF for a paper from OpenAIRE.
 
@@ -1668,7 +1586,7 @@ async def download_openaire(paper_id: str, save_path: str = "./downloads") -> st
     return openaire_searcher.download_pdf(paper_id, save_path)
 
 
-@mcp.tool(annotations={"readOnlyHint": False, "destructiveHint": True, "openWorldHint": True})
+@tool
 async def read_citeseerx_paper(paper_id: str, save_path: str = "./downloads") -> str:
     """Read and extract text content from a CiteSeerX paper.
 
@@ -1681,7 +1599,7 @@ async def read_citeseerx_paper(paper_id: str, save_path: str = "./downloads") ->
     return citeseerx_searcher.read_paper(paper_id, save_path)
 
 
-@mcp.tool(annotations={"readOnlyHint": False, "destructiveHint": True, "openWorldHint": True})
+@tool
 async def download_citeseerx(paper_id: str, save_path: str = "./downloads") -> str:
     """Download PDF for a paper from CiteSeerX.
 
@@ -1694,7 +1612,7 @@ async def download_citeseerx(paper_id: str, save_path: str = "./downloads") -> s
     return citeseerx_searcher.download_pdf(paper_id, save_path)
 
 
-@mcp.tool(annotations={"readOnlyHint": False, "destructiveHint": True, "openWorldHint": True})
+@tool
 async def read_doaj_paper(paper_id: str, save_path: str = "./downloads") -> str:
     """Read and extract text content from a DOAJ paper.
 
@@ -1707,7 +1625,7 @@ async def read_doaj_paper(paper_id: str, save_path: str = "./downloads") -> str:
     return doaj_searcher.read_paper(paper_id, save_path)
 
 
-@mcp.tool(annotations={"readOnlyHint": False, "destructiveHint": True, "openWorldHint": True})
+@tool
 async def download_doaj(paper_id: str, save_path: str = "./downloads") -> str:
     """Download PDF for a paper from DOAJ.
 
@@ -1720,7 +1638,7 @@ async def download_doaj(paper_id: str, save_path: str = "./downloads") -> str:
     return doaj_searcher.download_pdf(paper_id, save_path)
 
 
-@mcp.tool(annotations={"readOnlyHint": True, "openWorldHint": True})
+@tool
 async def read_base_paper(paper_id: str, save_path: str = "./downloads") -> str:
     """Read and extract text content from a BASE paper.
 
@@ -1733,7 +1651,7 @@ async def read_base_paper(paper_id: str, save_path: str = "./downloads") -> str:
     return base_searcher.read_paper(paper_id, save_path)
 
 
-@mcp.tool(annotations={"readOnlyHint": False, "destructiveHint": True, "openWorldHint": True})
+@tool
 async def download_base(paper_id: str, save_path: str = "./downloads") -> str:
     """Download PDF for a paper from BASE.
 
@@ -1746,7 +1664,7 @@ async def download_base(paper_id: str, save_path: str = "./downloads") -> str:
     return base_searcher.download_pdf(paper_id, save_path)
 
 
-@mcp.tool(annotations={"readOnlyHint": False, "destructiveHint": True, "openWorldHint": True})
+@tool
 async def read_zenodo_paper(paper_id: str, save_path: str = "./downloads") -> str:
     """Read and extract text content from a Zenodo paper.
 
@@ -1759,7 +1677,7 @@ async def read_zenodo_paper(paper_id: str, save_path: str = "./downloads") -> st
     return zenodo_searcher.read_paper(paper_id, save_path)
 
 
-@mcp.tool(annotations={"readOnlyHint": False, "destructiveHint": True, "openWorldHint": True})
+@tool
 async def download_zenodo(paper_id: str, save_path: str = "./downloads") -> str:
     """Download PDF for a paper from Zenodo.
 
@@ -1772,7 +1690,7 @@ async def download_zenodo(paper_id: str, save_path: str = "./downloads") -> str:
     return zenodo_searcher.download_pdf(paper_id, save_path)
 
 
-@mcp.tool(annotations={"readOnlyHint": False, "destructiveHint": True, "openWorldHint": True})
+@tool
 async def read_hal_paper(paper_id: str, save_path: str = "./downloads") -> str:
     """Read and extract text content from a HAL paper.
 
@@ -1785,7 +1703,7 @@ async def read_hal_paper(paper_id: str, save_path: str = "./downloads") -> str:
     return hal_searcher.read_paper(paper_id, save_path)
 
 
-@mcp.tool(annotations={"readOnlyHint": False, "destructiveHint": True, "openWorldHint": True})
+@tool
 async def download_hal(paper_id: str, save_path: str = "./downloads") -> str:
     """Download PDF for a paper from HAL.
 
@@ -1798,7 +1716,7 @@ async def download_hal(paper_id: str, save_path: str = "./downloads") -> str:
     return hal_searcher.download_pdf(paper_id, save_path)
 
 
-@mcp.tool(annotations={"readOnlyHint": False, "destructiveHint": True, "openWorldHint": True})
+@tool
 async def read_ssrn_paper(paper_id: str, save_path: str = "./downloads") -> str:
     """Read paper content from SSRN.
 
@@ -1813,7 +1731,7 @@ async def read_ssrn_paper(paper_id: str, save_path: str = "./downloads") -> str:
     return ssrn_searcher.read_paper(paper_id, save_path)
 
 
-@mcp.tool(annotations={"readOnlyHint": False, "destructiveHint": True, "openWorldHint": True})
+@tool
 async def download_ssrn(paper_id: str, save_path: str = "./downloads") -> str:
     """Download PDF for a paper from SSRN.
 
@@ -1828,7 +1746,7 @@ async def download_ssrn(paper_id: str, save_path: str = "./downloads") -> str:
     return ssrn_searcher.download_pdf(paper_id, save_path)
 
 
-@mcp.tool(annotations={"readOnlyHint": True, "openWorldHint": True})
+@tool
 async def read_openalex_paper(paper_id: str, save_path: str = "./downloads") -> str:
     """Attempt to read and extract text content from an OpenAlex paper.
 
@@ -1841,7 +1759,7 @@ async def read_openalex_paper(paper_id: str, save_path: str = "./downloads") -> 
     return openalex_searcher.read_paper(paper_id, save_path)
 
 
-@mcp.tool(annotations={"readOnlyHint": False, "destructiveHint": True, "openWorldHint": True})
+@tool
 async def download_openalex(paper_id: str, save_path: str = "./downloads") -> str:
     """Download PDF for a paper from OpenAlex.
 
@@ -1858,7 +1776,7 @@ async def download_openalex(paper_id: str, save_path: str = "./downloads") -> st
 # Optional IEEE Xplore tools — registered only when API key is set
 # ---------------------------------------------------------------------------
 if ieee_searcher is not None:
-    @mcp.tool(annotations={"readOnlyHint": True, "openWorldHint": True})
+    @tool
     async def search_ieee(query: str, max_results: int = 10) -> List[Dict]:
         """Search IEEE Xplore for papers.  Requires PAPER_SEARCH_MCP_IEEE_API_KEY (or IEEE_API_KEY).
 
@@ -1870,7 +1788,7 @@ if ieee_searcher is not None:
         """
         return await async_search(ieee_searcher, query, max_results)
 
-    @mcp.tool(annotations={"readOnlyHint": False, "destructiveHint": True, "openWorldHint": True})
+    @tool
     async def download_ieee(paper_id: str, save_path: str = "./downloads") -> str:
         """IEEE metadata-only connector: direct PDF download is not implemented.
 
@@ -1882,7 +1800,7 @@ if ieee_searcher is not None:
         """
         return await asyncio.to_thread(ieee_searcher.download_pdf, paper_id, save_path)
 
-    @mcp.tool(annotations={"readOnlyHint": True, "openWorldHint": True})
+    @tool
     async def read_ieee_paper(paper_id: str, save_path: str = "./downloads") -> str:
         """IEEE metadata-only connector: direct full-text reading is not implemented.
 
@@ -1898,7 +1816,7 @@ if ieee_searcher is not None:
 # ---------------------------------------------------------------------------
 # ACM Digital Library tools — keyless, served via Crossref (see acm.py)
 # ---------------------------------------------------------------------------
-@mcp.tool(annotations={"readOnlyHint": True, "openWorldHint": True})
+@tool
 async def search_acm(query: str, max_results: int = 10) -> List[Dict]:
     """Search ACM Digital Library for papers.
 
@@ -1910,7 +1828,7 @@ async def search_acm(query: str, max_results: int = 10) -> List[Dict]:
     """
     return await async_search(acm_searcher, query, max_results)
 
-@mcp.tool(annotations={"readOnlyHint": False, "destructiveHint": True, "openWorldHint": True})
+@tool
 async def download_acm(paper_id: str, save_path: str = "./downloads") -> str:
     """Download a PDF from ACM Digital Library.  dl.acm.org sits behind a
     Cloudflare browser challenge that blocks scripted downloads; on a block,
@@ -1924,7 +1842,7 @@ async def download_acm(paper_id: str, save_path: str = "./downloads") -> str:
     """
     return await asyncio.to_thread(acm_searcher.download_pdf, paper_id, save_path)
 
-@mcp.tool(annotations={"readOnlyHint": False, "destructiveHint": True, "openWorldHint": True})
+@tool
 async def read_acm_paper(paper_id: str, save_path: str = "./downloads") -> str:
     """Download and read an ACM Digital Library paper.
 
@@ -1935,181 +1853,3 @@ async def read_acm_paper(paper_id: str, save_path: str = "./downloads") -> str:
         str: Extracted text content.
     """
     return await asyncio.to_thread(acm_searcher.read_paper, paper_id, save_path)
-
-
-def _wait_for_windows_process_exit(process_id: int) -> bool:
-    """Wait for a Windows process handle to become signalled."""
-    import ctypes
-    from ctypes import wintypes
-
-    synchronize = 0x00100000
-    infinite = 0xFFFFFFFF
-    wait_object_0 = 0x00000000
-    kernel32 = ctypes.WinDLL("kernel32", use_last_error=True)
-    kernel32.OpenProcess.argtypes = [wintypes.DWORD, wintypes.BOOL, wintypes.DWORD]
-    kernel32.OpenProcess.restype = wintypes.HANDLE
-    kernel32.WaitForSingleObject.argtypes = [wintypes.HANDLE, wintypes.DWORD]
-    kernel32.WaitForSingleObject.restype = wintypes.DWORD
-    kernel32.CloseHandle.argtypes = [wintypes.HANDLE]
-    kernel32.CloseHandle.restype = wintypes.BOOL
-
-    handle = kernel32.OpenProcess(synchronize, False, process_id)
-    if not handle:
-        logger.warning(
-            "Could not watch MCP client process %s (Windows error %s)",
-            process_id,
-            ctypes.get_last_error(),
-        )
-        return False
-
-    try:
-        result = kernel32.WaitForSingleObject(handle, infinite)
-    finally:
-        kernel32.CloseHandle(handle)
-
-    if result != wait_object_0:
-        logger.warning(
-            "Waiting for MCP client process %s failed (result %#x)",
-            process_id,
-            result,
-        )
-        return False
-    return True
-
-
-def _exit_when_orphaned(poll_seconds: float = 5.0) -> None:
-    """Exit if the MCP client that spawned this stdio server goes away.
-
-    A stdio server is owned by exactly one client. When that client dies without
-    closing the pipe cleanly, ``mcp.run`` keeps blocking on stdin and the process
-    survives indefinitely, re-adopted by init. They accumulate: nine of these had
-    piled up on one developer machine, the oldest running for over a day.
-
-    Watch for reparenting and leave.
-    """
-    original_ppid = os.getppid()
-    if os.name == "nt":
-        # Windows keeps reporting the original parent PID after that process has
-        # exited, so polling getppid() cannot detect orphaning. A process handle
-        # becomes signalled at termination and works without an extra dependency.
-        if not _wait_for_windows_process_exit(original_ppid):
-            return
-        logger.info("MCP client process %s exited; shutting down", original_ppid)
-        os._exit(0)
-        return
-
-    while True:
-        time.sleep(poll_seconds)
-        ppid = os.getppid()
-        if ppid == 1 or ppid != original_ppid:
-            logger.info(
-                "MCP client gone (ppid %s -> %s); shutting down", original_ppid, ppid
-            )
-            os._exit(0)
-            return
-
-
-def _server_env(name: str, default: str) -> str:
-    """Return a server setting, preferring the repository-wide env prefix."""
-    load_env_file()
-    for key in (f"PAPER_SEARCH_MCP_{name}", f"PAPER_SEARCH_{name}"):
-        value = os.environ.get(key)
-        if value is not None and value.strip():
-            return value.strip()
-    return default
-
-
-def _valid_port(raw: str) -> int:
-    try:
-        port = int(raw)
-    except (TypeError, ValueError) as exc:
-        raise argparse.ArgumentTypeError(
-            "port must be an integer between 1 and 65535"
-        ) from exc
-    if not 1 <= port <= 65535:
-        raise argparse.ArgumentTypeError("port must be an integer between 1 and 65535")
-    return port
-
-
-def _valid_http_path(raw: str) -> str:
-    path = raw.strip()
-    if not path.startswith("/"):
-        raise argparse.ArgumentTypeError("path must start with '/'")
-    return path
-
-
-def _build_server_parser() -> argparse.ArgumentParser:
-    parser = argparse.ArgumentParser(description="Paper Search MCP server")
-    parser.add_argument(
-        "--transport",
-        choices=("stdio", "sse", "streamable-http"),
-        default=_server_env("TRANSPORT", "stdio"),
-        help="MCP transport (default: stdio; env: PAPER_SEARCH_MCP_TRANSPORT)",
-    )
-    parser.add_argument(
-        "--host",
-        default=_server_env("HOST", "127.0.0.1"),
-        help="Network bind host (env: PAPER_SEARCH_MCP_HOST)",
-    )
-    parser.add_argument(
-        "--port",
-        type=_valid_port,
-        default=_server_env("PORT", "8000"),
-        help="Network bind port (env: PAPER_SEARCH_MCP_PORT)",
-    )
-    parser.add_argument(
-        "--path",
-        type=_valid_http_path,
-        default=_server_env("PATH", "/mcp"),
-        help="Streamable HTTP endpoint path (env: PAPER_SEARCH_MCP_PATH)",
-    )
-    parser.add_argument(
-        "--auth", choices=("none", "oauth"), default=None,
-        help="HTTP auth mode (env: PAPER_SEARCH_MCP_AUTH; default: none; ignored for stdio)",
-    )
-    return parser
-
-
-def main(argv: list[str] | None = None) -> None:
-    """Run over stdio or a shared network transport.
-
-    Command-line arguments override environment settings. ``stdio`` stays the
-    default, so existing MCP client configurations remain compatible. The
-    shorter ``PAPER_SEARCH_*`` names introduced by PR #114 remain accepted as
-    aliases for the preferred ``PAPER_SEARCH_MCP_*`` names.
-    """
-    parser = _build_server_parser()
-    args = parser.parse_args(argv)
-
-    if args.transport == "stdio":
-        # Only meaningful for stdio: an http server has no owning client to outlive.
-        threading.Thread(
-            target=_exit_when_orphaned, name="orphan-watchdog", daemon=True
-        ).start()
-        mcp.run(transport="stdio")
-        return
-
-    from .http_auth import AuthConfigurationError, load_http_auth_config, run_protected_http
-
-    try:
-        auth_config = load_http_auth_config(
-            args.auth, args.path if args.transport == "streamable-http" else "/sse"
-        )
-    except AuthConfigurationError as exc:
-        parser.error(str(exc))
-
-    mcp.settings.host = args.host
-    mcp.settings.port = args.port
-    if args.transport == "streamable-http":
-        mcp.settings.streamable_http_path = args.path
-    logger.info(
-        "serving %s on %s:%s", args.transport, mcp.settings.host, mcp.settings.port
-    )
-    if auth_config is not None:
-        run_protected_http(mcp, args.transport, auth_config)
-    else:
-        mcp.run(transport=args.transport)
-
-
-if __name__ == "__main__":
-    main()

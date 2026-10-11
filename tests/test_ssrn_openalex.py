@@ -149,7 +149,7 @@ def test_limits_fail_before_network(limit):
 
 
 def test_ssrn_connector_and_unified_search_route_via_openalex(monkeypatch):
-    from paper_search_mcp import server
+    from paper_search_mcp import operations as server
     mock = Mock(side_effect=RuntimeError("OpenAlex HTTP 429"))
     monkeypatch.setattr(OpenAlexSearcher, "search_ssrn", mock)
     with pytest.raises(RuntimeError):

@@ -13,7 +13,8 @@ from unittest.mock import AsyncMock, Mock, patch
 
 import pytest
 
-from paper_search_mcp import cli, cli_search, cli_search_worker, server
+from paper_search_mcp import cli, cli_search, cli_search_worker
+from paper_search_mcp import operations as server
 from paper_search_mcp.academic_platforms.iacr import IACRSearcher
 from paper_search_mcp.academic_platforms.pubmed import PubMedSearcher
 
@@ -26,8 +27,8 @@ def test_search_papers_returns_partial_results_when_one_source_times_out():
     fast_result = [{"title": "fast", "paper_id": "fast-1"}]
     with (
         patch.object(server, "SEARCH_PAPERS_SOURCE_TIMEOUT_SECONDS", 0.01),
-        patch.object(server, "search_arxiv", AsyncMock(side_effect=slow_search)),
-        patch.object(server, "search_pubmed", AsyncMock(return_value=fast_result)),
+        patch.object(server.TOOLS["search_arxiv"], "function", AsyncMock(side_effect=slow_search)),
+        patch.object(server.TOOLS["search_pubmed"], "function", AsyncMock(return_value=fast_result)),
     ):
         result = asyncio.run(
             server.search_papers(
@@ -45,7 +46,7 @@ def test_search_papers_returns_partial_results_when_one_source_times_out():
 
 def test_search_papers_keeps_normal_source_results():
     result_row = [{"title": "paper a", "paper_id": "a"}]
-    with patch.object(server, "search_arxiv", AsyncMock(return_value=result_row)):
+    with patch.object(server.TOOLS["search_arxiv"], "function", AsyncMock(return_value=result_row)):
         result = asyncio.run(
             server.search_papers(
                 "test query",

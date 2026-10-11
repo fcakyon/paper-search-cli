@@ -96,7 +96,7 @@ class TestACMDownload(unittest.TestCase):
 
 class TestACMReadTool(unittest.TestCase):
     def test_read_runs_off_event_loop_thread(self):
-        from paper_search_mcp import server
+        from paper_search_mcp import operations as server
         caller_thread = threading.get_ident()
         def read(paper_id, save_path):
             self.assertNotEqual(threading.get_ident(), caller_thread)
@@ -110,7 +110,7 @@ class TestACMReadTool(unittest.TestCase):
 class TestACMAlwaysEnabled(unittest.TestCase):
     def test_in_all_sources_without_key(self):
         import importlib
-        import paper_search_mcp.server as srv_module
+        import paper_search_mcp.operations as srv_module
         importlib.reload(srv_module)
         self.assertIn("acm", srv_module.ALL_SOURCES)
 

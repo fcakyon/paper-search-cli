@@ -9,7 +9,8 @@ from unittest.mock import AsyncMock, Mock
 import pytest
 import requests
 
-from paper_search_mcp import cli, server
+from paper_search_mcp import cli
+from paper_search_mcp import operations as server
 from paper_search_mcp.academic_platforms import google_scholar
 from paper_search_mcp.academic_platforms.google_scholar import (
     GoogleScholarSearchError,
@@ -182,7 +183,7 @@ def test_unified_mcp_keeps_other_sources_and_reports_scholar_error(searcher, mon
     searcher.session.get.return_value = response(text="<input name='captcha'>")
     monkeypatch.setattr(server, "google_scholar_searcher", searcher)
     good_papers = [{"paper_id": "good", "title": "Good paper", "source": "arxiv"}]
-    monkeypatch.setattr(server, "search_arxiv", AsyncMock(return_value=good_papers))
+    monkeypatch.setattr(server.TOOLS["search_arxiv"], "function", AsyncMock(return_value=good_papers))
 
     result = asyncio.run(server.search_papers("test", sources="google_scholar,arxiv"))
 
@@ -367,7 +368,7 @@ def test_unified_search_preserves_public_alternatives_during_cooldown(searcher, 
     searcher._begin_cooldown()
     monkeypatch.setattr(server, "google_scholar_searcher", searcher)
     papers = [{"paper_id": "W1", "title": "Alternative", "source": "openalex"}]
-    monkeypatch.setattr(server, "search_openalex", AsyncMock(return_value=papers))
+    monkeypatch.setattr(server.TOOLS["search_openalex"], "function", AsyncMock(return_value=papers))
     result = asyncio.run(server.search_papers("query", sources="google_scholar,openalex"))
     assert "cooling down" in result["errors"]["google_scholar"]
     assert result["papers"] == papers

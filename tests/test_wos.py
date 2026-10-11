@@ -5,7 +5,9 @@ from unittest.mock import Mock
 
 import pytest
 
-from paper_search_mcp import cli, config, server
+from paper_search_mcp import cli, config
+from paper_search_mcp import operations as server
+from paper_search_mcp.tools import TOOLS
 from paper_search_mcp.academic_platforms.institutional import CredentialsRequiredError, ProviderResponseError
 from paper_search_mcp.academic_platforms.wos import WebOfScienceSearcher
 
@@ -122,12 +124,11 @@ def test_aggregate_errors_expose_configuration_failure(capsys):
     assert '[credentials_required]' in result['errors']['wos']
 
 
-def test_only_honest_mcp_capabilities_registered():
-    tools = {tool.name: tool for tool in asyncio.run(server.mcp.list_tools())}
+def test_only_supported_operations_registered():
+    tools = TOOLS
     assert 'search_wos' in tools
     assert 'download_wos' not in tools
     assert 'read_wos_paper' not in tools
-    assert tools['search_wos'].annotations.readOnlyHint is True
 
 
 @pytest.mark.parametrize('method', ['download_pdf', 'read_paper'])

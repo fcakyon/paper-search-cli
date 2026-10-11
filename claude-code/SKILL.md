@@ -14,7 +14,7 @@ All commands run via:
 paper-search <command> [args]
 ```
 
-If `paper-search` is not available, install it with `uv tool install paper-search-mcp`. Optional API keys can be configured in `~/.config/paper-search-mcp/.env`.
+If `paper-search` is not available, install it with `uv tool install 'git+https://github.com/fcakyon/paper-search-cli'`. Optional API keys can be configured in `~/.config/paper-search-mcp/.env`.
 
 ### Search
 ```bash
@@ -42,12 +42,12 @@ paper-search read <source> <paper_id> [-o ./downloads]
 paper-search sources
 ```
 
-### MCP tools from the CLI
+### All paper operations
 
-`paper-search tool` calls the same registered tools as the MCP server, including
+`paper-search tool` calls paper functions directly, including
 source-specific options and DOI lookup. Required arguments are positional;
 optional arguments use kebab-case flags. Boolean flags use `--flag` and
-`--no-flag`; omitted options retain their MCP defaults.
+`--no-flag`; omitted options retain their function defaults.
 
 ```bash
 paper-search tool --help
@@ -60,11 +60,11 @@ paper-search tool search_iacr "cryptography" --no-fetch-details
 
 Objects and lists return JSON; text and download paths return plain text. An
 exception returns a JSON error with exit code 1; invalid CLI syntax exits with
-code 2. A normal MCP result retains its original meaning, including error or
+code 2. An operation result retains its original meaning, including error or
 partial-result fields returned by the tool itself. `--list` shows only tools
 enabled by the current configuration, so IEEE tools still require their API
 key. The existing `search`, `download`, `read`, and `sources` commands are
-unchanged. Tool calls keep the MCP tools' source selection and timeout behavior;
+unchanged. Tool calls keep the operations' source selection and timeout behavior;
 Sci-Hub fallback remains opt-in through `--use-scihub`.
 
 ## Output

@@ -2,8 +2,8 @@
 
 ## Web of Science Starter
 
-- Use `paper-search search 'TI=(machine learning)' -s wos`, MCP `search_wos`, or
-  MCP `search_papers` with `sources="wos"`. This is the caller's explicit opt-in.
+- Use `paper-search search 'TI=(machine learning)' -s wos`, CLI `search_wos`, or
+  CLI `search_papers` with `sources="wos"`. This is the caller's explicit opt-in.
 - Supplying `PAPER_SEARCH_MCP_WOS_API_KEY` (legacy `WOS_API_KEY`) never adds WoS to
   default/`all`/`fast`/`fastest` searches. The prefixed value takes precedence,
   including a blank value. Keys are read at call time and sent only in a header
@@ -13,7 +13,7 @@
   equivalent ordinary CLI flag is `--wos-db`.
 - Metadata only: UID, title, authors, DOI, publication year, source, record URL,
   and citation counts when the API plan supplies them. Starter does not provide
-  abstract/full-text reading or direct PDF download. No misleading MCP download
+  abstract/full-text reading or direct PDF download. No misleading CLI download
   or read tools are registered. CLI read/download fail with an unsupported error.
 - `max_results` must be 0..100. Each call makes at most two requests, at most 50
   records per page. Results stop at the requested count, upstream exhaustion, or
@@ -27,7 +27,7 @@
 ## Failure contract
 
 Python callers receive typed `InstitutionalAPIError` subclasses. Aggregate CLI
-and MCP `errors` preserve a stable `[code]` prefix: `credentials_required`,
+and CLI `errors` preserve a stable `[code]` prefix: `credentials_required`,
 `permission_denied` (401/403), `rate_limited` (429), `timeout`, `connection_error`,
 `not_found`, or `invalid_response`. Genuine zero matches are an empty paper list
 without a source error. A malformed/error envelope is never a zero-hit success.
@@ -60,7 +60,7 @@ Official references checked on 2026-10-01:
 ## Scopus and optional ScienceDirect text
 
 Scopus is also explicit-only: `paper-search search 'TITLE(machine learning)' -s
-scopus`, MCP `search_scopus`, or `search_papers` with `sources="scopus"`. Supplying
+scopus`, CLI `search_scopus`, or `search_papers` with `sources="scopus"`. Supplying
 `PAPER_SEARCH_MCP_SCOPUS_API_KEY` (legacy `SCOPUS_API_KEY`) never adds it to a
 preset. An already-issued institution token can optionally be supplied as
 `PAPER_SEARCH_MCP_SCOPUS_INST_TOKEN` (legacy `SCOPUS_INST_TOKEN`); neither is
@@ -73,9 +73,9 @@ and may require additional entitlement. Metadata availability varies by view;
 search does not promise abstracts or full text. No per-result detail requests
 are made. Limits are 0..100 results and at most four pages of 25 records, without
 retries or cursor harvesting. Invalid inputs fail before a request. The native
-query syntax passes through. Supported options are identical in MCP and CLI:
+query syntax passes through. Supported options are identical in the generic and ordinary CLI commands:
 
-| MCP `search_scopus` argument | Ordinary CLI search flag |
+| CLI `search_scopus` argument | Ordinary CLI search flag |
 | --- | --- |
 | `view` (`STANDARD`, `COMPLETE`) | `--scopus-view` |
 | `sort` (`relevance`, `coverDate`, `citedby-count`, `creator`) | `--scopus-sort` |
@@ -88,7 +88,7 @@ The existing CLI `--sort` remains local merged-result ordering and is separate
 from `--scopus-sort`. The existing `--year` continues to apply to Semantic only.
 
 `read_scopus_paper(paper_id)` or `paper-search read scopus ID` requests Scopus
-abstract metadata only. Set MCP `full_text=true` or CLI `--full-text` to make at
+abstract metadata only. Set CLI `full_text=true` or CLI `--full-text` to make at
 most one additional ScienceDirect Article Retrieval request:
 
 1. Validate the numeric Scopus ID before constructing a URL

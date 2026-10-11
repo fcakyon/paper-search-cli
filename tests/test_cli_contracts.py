@@ -8,6 +8,8 @@ import sys
 
 import pytest
 
+from tests.pdf_helpers import make_pdf
+
 
 @pytest.fixture
 def command(tmp_path):
@@ -18,6 +20,7 @@ import json
 import os
 import runpy
 import sys
+from pathlib import Path
 from urllib.parse import urlsplit
 import requests
 
@@ -32,6 +35,7 @@ if os.environ.get('TEST_WITHOUT_MCP'):
 def send(self, request, **kwargs):
     response = requests.Response()
     response.status_code = 200
+    response._content_consumed = True
     response.url = request.url
     response.request = request
     host = urlsplit(request.url).hostname
@@ -42,6 +46,8 @@ def send(self, request, **kwargs):
                 'type': 'journal-article', 'is-referenced-by-count': 7}
         message = {'items': [item]} if urlsplit(request.url).path == '/works' else item
         response._content = json.dumps({'status': 'ok', 'message': message}).encode()
+    elif host == 'arxiv.org' and urlsplit(request.url).path == '/pdf/2601.00001.pdf':
+        response._content = Path(os.environ['TEST_PDF']).read_bytes()
     else:
         raise AssertionError('Unexpected network request: ' + request.url)
     return response
@@ -52,7 +58,10 @@ runpy.run_module('paper_search_mcp.cli', run_name='__main__')
     env = {key: value for key, value in os.environ.items()
            if not key.startswith(('PAPER_SEARCH', 'TEST_WITHOUT_MCP'))}
     env['PAPER_SEARCH_MCP_ENV_FILE'] = str(tmp_path / 'absent.env')
-    env['PYTHONPATH'] = str(Path(__file__).resolve().parents[1])
+    env.pop('PYTHONPATH', None)
+    pdf = tmp_path / 'fixture.pdf'
+    pdf.write_bytes(make_pdf([['Fixture paper', 'Abstract', 'CLI regression text']]))
+    env['TEST_PDF'] = str(pdf)
 
     def run(*args, without_mcp=False):
         return subprocess.run(
@@ -108,3 +117,20 @@ def test_read_limitations_remain_plain_text(command, without_mcp):
     assert result.returncode == 0, result.stdout + result.stderr
     assert 'CrossRef papers cannot be read directly' in result.stdout
     assert not result.stdout.startswith(('{', '['))
+
+
+@pytest.mark.parametrize('download', [
+    ('download', 'arxiv', '2601.00001'),
+    ('tool', 'download_arxiv', '2601.00001'),
+    ('tool', 'download_with_fallback', 'arxiv', '2601.00001'),
+])
+def test_pdf_download_and_read_without_mcp(command, tmp_path, download):
+    """Download real PDF bytes and read the saved artifact through the CLI."""
+    result = command(*download, '--save-path', str(tmp_path / 'papers'), without_mcp=True)
+    assert result.returncode == 0, result.stdout + result.stderr
+    path = json.loads(result.stdout)['path'] if download[0] == 'download' else result.stdout.strip()
+    assert Path(path).read_bytes() == (tmp_path / 'fixture.pdf').read_bytes()
+    for read in [('read', 'arxiv'), ('tool', 'read_arxiv_paper')]:
+        result = command(*read, '2601.00001', '--save-path', str(tmp_path / 'papers'), without_mcp=True)
+        assert result.returncode == 0, result.stdout + result.stderr
+        assert 'CLI regression text' in result.stdout

@@ -10,8 +10,13 @@ from unittest.mock import Mock, patch
 
 import pytest
 
-from paper_search_mcp import server
+from paper_search_mcp import operations as server
 from paper_search_mcp.search_cache import CacheSettings, SearchCache, search_key
+
+
+@pytest.fixture(autouse=True)
+def isolated_netrc(monkeypatch, tmp_path):
+    monkeypatch.setenv("NETRC", str(tmp_path / "absent.netrc"))
 
 
 @pytest.fixture
@@ -343,13 +348,10 @@ def test_cancelled_search_does_not_cache_late_provider_result(cache):
     assert cache.status()["entries"] == 0
 
 
-def test_mcp_cache_tools_and_annotations(cache):
+def test_cache_operations(cache):
     with patch.object(server, "_SEARCH_CACHE", cache):
         assert asyncio.run(server.get_search_cache_status())["enabled"]
         assert asyncio.run(server.clear_search_cache())["cleared"] == 0
-    tools = {tool.name: tool for tool in asyncio.run(server.mcp.list_tools())}
-    assert tools["get_search_cache_status"].annotations.readOnlyHint
-    assert tools["clear_search_cache"].annotations.destructiveHint
 
 
 def _process_cache_writer(args):

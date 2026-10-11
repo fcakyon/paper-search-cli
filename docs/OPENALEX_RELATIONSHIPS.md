@@ -4,7 +4,7 @@ OpenAlex search results now fill the existing `Paper.references` field from
 `referenced_works`. `Paper.to_dict()` still serializes it as a `; `-joined string.
 This is parsed from the existing response, with no extra search-time requests.
 
-Two MCP tools retrieve one relationship hop, ranked by OpenAlex citation count:
+Two CLI operations retrieve one relationship hop, ranked by OpenAlex citation count:
 
 - `get_citing_papers(identifier, max_results=10, filter="", max_pages=5,
   max_requests=8, timeout_seconds=30)`
@@ -25,7 +25,7 @@ or untitled works). `stop_reason` is `complete`, `max_results`, `page_budget`, o
 `request_budget`. There are no implicit requests for additional graph hops.
 
 The hard input ceilings are 500 results, five 100-record pages, eight HTTP
-requests including the seed and redirects, and a 60-second MCP wall-clock
+requests including the seed and redirects, and a 60-second operation wall-clock
 budget. Defaults are smaller (10 results, 30 seconds). No automatic retry sleeps
 or unbounded request queue are added. HTTP 404, 429, 5xx, authentication failures,
 invalid JSON, and timeouts raise explicit errors; a failure on a later page does
@@ -33,11 +33,11 @@ not return a misleading successful partial result. Request/page caps deliberatel
 return partial results with `truncated=true`.
 
 Requests use the existing bounded worker pool. Python cannot forcibly interrupt
-an in-flight blocking socket call when the MCP timeout expires; it retains its
+an in-flight blocking socket call when the operation timeout expires; it retains its
 pool slot until it exits. Each request has a socket timeout of at most ten
 seconds and the remaining budget, with deadline checks before and after each
 request. Direct synchronous connector users get these socket/deadline checks,
-not the MCP wrapper's independent wall-clock cancellation. Redirects only follow
+not the CLI wrapper's independent wall-clock cancellation. Redirects only follow
 canonical OpenAlex work endpoints and consume the same request budget.
 
 Coverage depends on records deposited/matched in OpenAlex. An empty reference
@@ -50,7 +50,7 @@ citation enrichment, or new default network source is enabled.
 Offline tests cover serialization, optional keys/filters, strict DOI/ID handling,
 percent-encoded DOI paths, seed validation, both relationship directions, global
 server-side ranking, fixed page sizes, partial-result flags, request/redirect/time
-budgets, null fields, explicit failures, and MCP deadline enforcement. Live API
+budgets, null fields, explicit failures, and operation deadline enforcement. Live API
 responses are not required for the test suite.
 
 API references checked for this implementation:
